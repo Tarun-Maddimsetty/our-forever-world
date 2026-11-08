@@ -19,6 +19,60 @@ function saveLocalRoom(roomRecord) {
   } catch (e) {}
 }
 
+// Client-side image downscaling to max 1600px to keep GPU textures light and uploads fast
+export async function resizeImage(file, maxDimension = 1600) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+
+      if (width <= maxDimension && height <= maxDimension) {
+        return resolve(file);
+      }
+
+      if (width > height) {
+        height = Math.round((height * maxDimension) / width);
+        width = maxDimension;
+      } else {
+        width = Math.round((width * maxDimension) / height);
+        height = maxDimension;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          const cleanName = (file.name || 'photo').replace(/\.[^.]+$/, '.jpg');
+          const resizedFile = new File([blob], cleanName, {
+            type: 'image/jpeg',
+            lastModified: Date.now(),
+          });
+          resolve(resizedFile);
+        },
+        'image/jpeg',
+        0.88
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+}
+
 export const roomApi = {
   // Create a brand new room draft
   async createRoom() {
@@ -164,11 +218,19 @@ export const roomApi = {
     return { success: true, isPublished: true };
   },
 
-  // Upload photo or audio file (Creator only)
-  async uploadMedia(file, creatorToken) {
+  // Upload photo or audio file to cloud storage and persist under room
+  async uploadMedia(file, creatorToken, options = {}) {
     try {
+      const processedFile = await resizeImage(file, 1600);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', processedFile);
+      if (options.roomCode) formData.append('roomCode', options.roomCode);
+      if (options.roomId) formData.append('roomId', options.roomId);
+      if (options.photoIndex !== undefined) formData.append('photoIndex', options.photoIndex);
+      if (options.caption) formData.append('caption', options.caption);
+      if (options.uploader) formData.append('uploader', options.uploader);
+      if (options.room) formData.append('room', options.room);
+      if (options.letter) formData.append('letter', options.letter);
 
       const res = await fetch(`${API_BASE}/api/upload`, {
         method: 'POST',
@@ -177,23 +239,33 @@ export const roomApi = {
         },
         body: formData,
       });
+
       if (res.ok) {
-        return res.json();
+        return await res.json();
       }
+
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Upload failed (${res.status})`);
     } catch (e) {
-      console.warn('Backend upload offline, converting to local Object URL:', e.message);
+      console.warn('Backend cloud upload error:', e.message);
+      throw e;
+    }
+  },
+
+  // Delete photo (only with creator token & confirmation)
+  async deletePhoto(roomId, creatorToken, photoId) {
+    const res = await fetch(`${API_BASE}/api/rooms/${roomId}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${creatorToken}`,
+      },
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Failed to delete photo (${res.status})`);
     }
 
-    // Graceful offline fallback: Create local object/data URL so image/audio preview works immediately
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve({
-          url: reader.result,
-          originalName: file.name,
-        });
-      };
-      reader.readAsDataURL(file);
-    });
+    return res.json();
   },
 };

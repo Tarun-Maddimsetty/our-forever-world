@@ -2,6 +2,18 @@ import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+// Automatically load local .env if present (native in Node 20+)
+if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile('.env');
+  } catch (e) {}
+}
+
+function cleanEnv(val) {
+  if (!val) return '';
+  return String(val).trim().replace(/^["']|["']$/g, '').trim();
+}
+
 /**
  * Cloud Media Storage Service
  * Supports:
@@ -18,20 +30,28 @@ export class CloudStorageService {
   }
 
   parseCloudinaryUrl() {
-    if (process.env.CLOUDINARY_URL) {
+    const rawUrl = cleanEnv(process.env.CLOUDINARY_URL);
+    if (rawUrl) {
       try {
-        const parsed = new URL(process.env.CLOUDINARY_URL);
+        const urlToParse = rawUrl.replace(/\/+$/, '');
+        const parsed = new URL(urlToParse);
         if (parsed.protocol === 'cloudinary:') {
-          process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || parsed.username;
-          process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || parsed.password;
-          process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || parsed.hostname;
+          if (!process.env.CLOUDINARY_API_KEY && parsed.username) {
+            process.env.CLOUDINARY_API_KEY = parsed.username;
+          }
+          if (!process.env.CLOUDINARY_API_SECRET && parsed.password) {
+            process.env.CLOUDINARY_API_SECRET = parsed.password;
+          }
+          if (!process.env.CLOUDINARY_CLOUD_NAME && parsed.hostname) {
+            process.env.CLOUDINARY_CLOUD_NAME = parsed.hostname;
+          }
         }
       } catch (e) {
-        const match = process.env.CLOUDINARY_URL.match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+        const match = rawUrl.match(/^cloudinary:\/\/([^:]+):([^@]+)@([^/?#]+)/i);
         if (match) {
-          process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || match[1];
-          process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || match[2];
-          process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || match[3];
+          if (!process.env.CLOUDINARY_API_KEY) process.env.CLOUDINARY_API_KEY = match[1];
+          if (!process.env.CLOUDINARY_API_SECRET) process.env.CLOUDINARY_API_SECRET = match[2];
+          if (!process.env.CLOUDINARY_CLOUD_NAME) process.env.CLOUDINARY_CLOUD_NAME = match[3];
         }
       }
     }
@@ -39,24 +59,46 @@ export class CloudStorageService {
 
   detectProvider() {
     this.parseCloudinaryUrl();
-    if (process.env.CLOUDINARY_CLOUD_NAME && (process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_UPLOAD_PRESET)) {
+    const cloudName = cleanEnv(process.env.CLOUDINARY_CLOUD_NAME);
+    const apiKey = cleanEnv(process.env.CLOUDINARY_API_KEY);
+    const uploadPreset = cleanEnv(process.env.CLOUDINARY_UPLOAD_PRESET);
+    const cloudinaryUrl = cleanEnv(process.env.CLOUDINARY_URL);
+
+    if (cloudinaryUrl || (cloudName && (apiKey || uploadPreset))) {
       return 'cloudinary';
     }
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY && process.env.SUPABASE_BUCKET) {
+    const supabaseUrl = cleanEnv(process.env.SUPABASE_URL);
+    const supabaseKey = cleanEnv(process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabaseBucket = cleanEnv(process.env.SUPABASE_BUCKET);
+    if (supabaseUrl && supabaseKey && supabaseBucket) {
       return 'supabase';
     }
     return 'local';
   }
 
+  ensureProvider() {
+    if (this.provider === 'local') {
+      const detected = this.detectProvider();
+      if (detected !== 'local') {
+        this.provider = detected;
+        console.log(`[Storage] Dynamically upgraded provider to: ${this.provider}`);
+      }
+    }
+    return this.provider;
+  }
+
   getStorageStatus() {
+    const p = this.ensureProvider();
+    const cloudName = cleanEnv(process.env.CLOUDINARY_CLOUD_NAME);
+    const bucket = cleanEnv(process.env.SUPABASE_BUCKET) || 'memories';
     return {
-      provider: this.provider,
-      isCloud: this.provider !== 'local',
+      provider: p,
+      isCloud: p !== 'local',
       details:
-        this.provider === 'cloudinary'
-          ? `Cloudinary (Cloud: ${process.env.CLOUDINARY_CLOUD_NAME})`
-          : this.provider === 'supabase'
-          ? `Supabase Storage (Bucket: ${process.env.SUPABASE_BUCKET})`
+        p === 'cloudinary'
+          ? `Cloudinary (Cloud: "${cloudName || 'configured'}")`
+          : p === 'supabase'
+          ? `Supabase Storage (Bucket: "${bucket}")`
           : 'Local Server Disk (/uploads)',
     };
   }
@@ -68,14 +110,15 @@ export class CloudStorageService {
    */
   async uploadFile(file) {
     if (!file) throw new Error('No file provided for upload.');
+    this.ensureProvider();
 
     // 1. Cloudinary Upload
     if (this.provider === 'cloudinary') {
       try {
-        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-        const apiKey = process.env.CLOUDINARY_API_KEY;
-        const apiSecret = process.env.CLOUDINARY_API_SECRET;
-        const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+        const cloudName = cleanEnv(process.env.CLOUDINARY_CLOUD_NAME);
+        const apiKey = cleanEnv(process.env.CLOUDINARY_API_KEY);
+        const apiSecret = cleanEnv(process.env.CLOUDINARY_API_SECRET);
+        const uploadPreset = cleanEnv(process.env.CLOUDINARY_UPLOAD_PRESET);
 
         const fileBuffer = fs.readFileSync(file.path);
         const base64Data = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
@@ -129,9 +172,9 @@ export class CloudStorageService {
     // 2. Supabase Storage Upload
     if (this.provider === 'supabase') {
       try {
-        const supabaseUrl = process.env.SUPABASE_URL.replace(/\/+$/, '');
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
-        const bucket = process.env.SUPABASE_BUCKET || 'memories';
+        const supabaseUrl = cleanEnv(process.env.SUPABASE_URL).replace(/\/+$/, '');
+        const supabaseKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY);
+        const bucket = cleanEnv(process.env.SUPABASE_BUCKET) || 'memories';
         const fileExt = path.extname(file.originalname) || '';
         const storagePath = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${fileExt}`;
 
@@ -172,7 +215,7 @@ export class CloudStorageService {
 
     // 3. Local/Persistent Disk Fallback
     const baseUrl = process.env.SERVER_PUBLIC_URL
-      ? process.env.SERVER_PUBLIC_URL.replace(/\/+$/, '')
+      ? cleanEnv(process.env.SERVER_PUBLIC_URL).replace(/\/+$/, '')
       : '';
     const fileUrl = `${baseUrl}/uploads/${file.filename}`;
 

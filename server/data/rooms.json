@@ -4189,5 +4189,259 @@
       "greetingMessage": "HAPPY BIRTHDAY, MY LOVE! ❤️",
       "greetingSubtitle": "I have been waiting here for you with all my love..."
     }
+  },
+  "5ff565dc-8f2c-42ef-b9de-32dee034cf29": {
+    "roomId": "5ff565dc-8f2c-42ef-b9de-32dee034cf29",
+    "roomCode": "ETERNAL-6419",
+    "creatorToken": "e72546432263ff458e2c11eceba91d4bb68e8a123afb52f59e99faf81b4e266d",
+    "published": true,
+    "createdAt": "2026-11-08T17:02:36.180Z",
+    "updatedAt": "2026-11-08T17:02:36.241Z",
+    "title": "Our Forever World ❤️",
+    "husbandName": "Tarun",
+    "wifeName": "My Beloved Wife",
+    "museumConfiguration": {
+      "photos": [
+        {
+          "id": 1,
+          "title": "The Day Our Stars Aligned",
+          "date": "Memory 01",
+          "location": "Where our journey began",
+          "image": "/assets/photos/memory1.jpg",
+          "letter": "My Dearest Love,\n\nDo you remember that first day? The world around us seemed to quiet down, and for the very first time in my life, my soul felt like it had finally found its true home.\n\nThank you for opening your heart to me. Every step since that moment has been pure magic.\n\nForever Yours ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 2,
+          "title": "Our Unforgettable Adventures",
+          "date": "Memory 02",
+          "location": "Under endless skies",
+          "image": "/assets/photos/memory2.jpg",
+          "letter": "My Sweet Adventurer,\n\nThey say the destination doesn't matter as much as who you travel with, but with you, every single ordinary moment becomes a grand adventure.\n\nI want to explore every corner of this earth with you, hand in hand, never letting go.\n\nAlways by your side ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 3,
+          "title": "The Quiet Little Moments",
+          "date": "Memory 03",
+          "location": "In our warm sanctuary",
+          "image": "/assets/photos/memory3.jpg",
+          "letter": "My Beautiful Wife,\n\nIt's the peaceful simplicity of being together that I treasure most. Making breakfast together, sharing a blanket, and your soft giggles.\n\nYou are my safe harbor.\n\nEndlessly loving you ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 4,
+          "title": "Through Every Storm Together",
+          "date": "Memory 04",
+          "location": "Unbreakable & strong",
+          "image": "/assets/photos/memory4.jpg",
+          "letter": "To My Rock,\n\nWhenever the winds blew strong and the clouds grew dark, having you beside me made me feel completely invincible.\n\nI am yours in all seasons of life.\n\nYour faithful protector ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 5,
+          "title": "The Sound of Your Laughter",
+          "date": "Memory 05",
+          "location": "The music of my life",
+          "image": "/assets/photos/memory5.jpg",
+          "letter": "My Sunshine,\n\nYour laugh is my favorite melody in the entire universe. Whenever you smile from your heart, my whole universe lights up.\n\nForever smiling with you ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 6,
+          "title": "Dreams We Are Building",
+          "date": "Memory 06",
+          "location": "Our bright tomorrow",
+          "image": "/assets/photos/memory6.jpg",
+          "letter": "My Partner in Everything,\n\nWhen I close my eyes and picture the years ahead, I see your hand still intertwined with mine. We are building a life filled with kindness, warmth, and boundless love.\n\nBuilding our forever ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 7,
+          "title": "My Eternal Vow to You",
+          "date": "Memory 07",
+          "location": "Written in the stars",
+          "image": "/assets/photos/memory7.jpg",
+          "letter": "My Whole Heart,\n\nAll these memories are merely the opening chapters of our endless story. Now, step forward into the rooms waiting ahead...\n\nWith every beat of my heart ❤️",
+          "wall": "north",
+          "positionOffset": 0,
+          "scale": 1
+        }
+      ]
+    },
+    "singingConfiguration": {
+      "songTitle": "A Song From My Heart",
+      "singingAudioUrl": "/assets/audio/background-music.mp3",
+      "hasCustomAudio": false,
+      "stageLightingColor": "#ffd700",
+      "microphoneHeight": 1.25,
+      "introMessage": "I prepared this special song just for you..."
+    },
+    "dancingConfiguration": {
+      "danceMusicUrl": "/assets/audio/background-music.mp3",
+      "danceSongName": "Our Romantic Waltz",
+      "tempo": "slow",
+      "lightingMood": "candlelight",
+      "rosePetalDensity": "high"
+    },
+    "bedroomConfiguration": {
+      "birthdayLetter": {
+        "salutation": "To My Dearest, Most Beautiful Wife,",
+        "bodyParagraphs": [
+          "Happy Birthday, my darling! On this special day, the whole universe celebrates the moment you came into this world, bringing warmth, kindness, and boundless joy to everyone lucky enough to know you—and most especially to me.",
+          "Every single day I wake up knowing I am loved by you is the greatest privilege of my life. You make every ordinary day feel like an extraordinary blessing. In your eyes, I see my future, my sanctuary, and my peace.",
+          "I built this world for you so that whenever distance or time feels heavy, you can step into this place and remember that my love for you is vast, unwavering, and forever.",
+          "May this new year of your life be filled with sweet surprises, laughter, overflowing love, and all the dreams your heart has ever wished for. I will be right here holding your hand, cheering for you, protecting you, and loving you more and more every single day."
+        ],
+        "closing": "With all my heart and my entire soul,",
+        "signature": "Your Loving Husband ❤️"
+      },
+      "voiceRecordingUrl": "/assets/audio/birthday-voice.mp3",
+      "hasCustomVoice": false,
+      "necklaceType": "gold_heart_diamond",
+      "allowHug": true,
+      "allowKiss": true,
+      "greetingMessage": "HAPPY BIRTHDAY, MY LOVE! ❤️",
+      "greetingSubtitle": "I have been waiting here for you with all my love..."
+    }
+  },
+  "436d36bf-6f87-4ce2-ad92-40e050956dac": {
+    "roomId": "436d36bf-6f87-4ce2-ad92-40e050956dac",
+    "roomCode": "HEART-8518",
+    "creatorToken": "2c709437392e207f344ad89936abf74691a844a31abcb2512e48f5b375259203",
+    "published": true,
+    "createdAt": "2026-11-08T17:04:55.463Z",
+    "updatedAt": "2026-11-08T17:04:55.516Z",
+    "title": "Our Forever World ❤️",
+    "husbandName": "Tarun",
+    "wifeName": "My Beloved Wife",
+    "museumConfiguration": {
+      "photos": [
+        {
+          "id": 1,
+          "title": "The Day Our Stars Aligned",
+          "date": "Memory 01",
+          "location": "Where our journey began",
+          "image": "/assets/photos/memory1.jpg",
+          "letter": "My Dearest Love,\n\nDo you remember that first day? The world around us seemed to quiet down, and for the very first time in my life, my soul felt like it had finally found its true home.\n\nThank you for opening your heart to me. Every step since that moment has been pure magic.\n\nForever Yours ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 2,
+          "title": "Our Unforgettable Adventures",
+          "date": "Memory 02",
+          "location": "Under endless skies",
+          "image": "/assets/photos/memory2.jpg",
+          "letter": "My Sweet Adventurer,\n\nThey say the destination doesn't matter as much as who you travel with, but with you, every single ordinary moment becomes a grand adventure.\n\nI want to explore every corner of this earth with you, hand in hand, never letting go.\n\nAlways by your side ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 3,
+          "title": "The Quiet Little Moments",
+          "date": "Memory 03",
+          "location": "In our warm sanctuary",
+          "image": "/assets/photos/memory3.jpg",
+          "letter": "My Beautiful Wife,\n\nIt's the peaceful simplicity of being together that I treasure most. Making breakfast together, sharing a blanket, and your soft giggles.\n\nYou are my safe harbor.\n\nEndlessly loving you ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 4,
+          "title": "Through Every Storm Together",
+          "date": "Memory 04",
+          "location": "Unbreakable & strong",
+          "image": "/assets/photos/memory4.jpg",
+          "letter": "To My Rock,\n\nWhenever the winds blew strong and the clouds grew dark, having you beside me made me feel completely invincible.\n\nI am yours in all seasons of life.\n\nYour faithful protector ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 5,
+          "title": "The Sound of Your Laughter",
+          "date": "Memory 05",
+          "location": "The music of my life",
+          "image": "/assets/photos/memory5.jpg",
+          "letter": "My Sunshine,\n\nYour laugh is my favorite melody in the entire universe. Whenever you smile from your heart, my whole universe lights up.\n\nForever smiling with you ❤️",
+          "wall": "west",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 6,
+          "title": "Dreams We Are Building",
+          "date": "Memory 06",
+          "location": "Our bright tomorrow",
+          "image": "/assets/photos/memory6.jpg",
+          "letter": "My Partner in Everything,\n\nWhen I close my eyes and picture the years ahead, I see your hand still intertwined with mine. We are building a life filled with kindness, warmth, and boundless love.\n\nBuilding our forever ❤️",
+          "wall": "east",
+          "positionOffset": 0,
+          "scale": 1
+        },
+        {
+          "id": 7,
+          "title": "My Eternal Vow to You",
+          "date": "Memory 07",
+          "location": "Written in the stars",
+          "image": "/assets/photos/memory7.jpg",
+          "letter": "My Whole Heart,\n\nAll these memories are merely the opening chapters of our endless story. Now, step forward into the rooms waiting ahead...\n\nWith every beat of my heart ❤️",
+          "wall": "north",
+          "positionOffset": 0,
+          "scale": 1
+        }
+      ]
+    },
+    "singingConfiguration": {
+      "songTitle": "A Song From My Heart",
+      "singingAudioUrl": "/assets/audio/background-music.mp3",
+      "hasCustomAudio": false,
+      "stageLightingColor": "#ffd700",
+      "microphoneHeight": 1.25,
+      "introMessage": "I prepared this special song just for you..."
+    },
+    "dancingConfiguration": {
+      "danceMusicUrl": "/assets/audio/background-music.mp3",
+      "danceSongName": "Our Romantic Waltz",
+      "tempo": "slow",
+      "lightingMood": "candlelight",
+      "rosePetalDensity": "high"
+    },
+    "bedroomConfiguration": {
+      "birthdayLetter": {
+        "salutation": "To My Dearest, Most Beautiful Wife,",
+        "bodyParagraphs": [
+          "Happy Birthday, my darling! On this special day, the whole universe celebrates the moment you came into this world, bringing warmth, kindness, and boundless joy to everyone lucky enough to know you—and most especially to me.",
+          "Every single day I wake up knowing I am loved by you is the greatest privilege of my life. You make every ordinary day feel like an extraordinary blessing. In your eyes, I see my future, my sanctuary, and my peace.",
+          "I built this world for you so that whenever distance or time feels heavy, you can step into this place and remember that my love for you is vast, unwavering, and forever.",
+          "May this new year of your life be filled with sweet surprises, laughter, overflowing love, and all the dreams your heart has ever wished for. I will be right here holding your hand, cheering for you, protecting you, and loving you more and more every single day."
+        ],
+        "closing": "With all my heart and my entire soul,",
+        "signature": "Your Loving Husband ❤️"
+      },
+      "voiceRecordingUrl": "/assets/audio/birthday-voice.mp3",
+      "hasCustomVoice": false,
+      "necklaceType": "gold_heart_diamond",
+      "allowHug": true,
+      "allowKiss": true,
+      "greetingMessage": "HAPPY BIRTHDAY, MY LOVE! ❤️",
+      "greetingSubtitle": "I have been waiting here for you with all my love..."
+    }
   }
 }

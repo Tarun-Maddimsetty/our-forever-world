@@ -1,13 +1,6 @@
-import express from 'express';
-import cors from 'cors';
-import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-
-import { cloudDb } from './cloudDb.js';
-import { cloudStorage } from './cloudStorage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +11,14 @@ if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') {
     process.loadEnvFile('.env');
   } catch (e) {}
 }
+
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import crypto from 'crypto';
+
+import { cloudDb } from './cloudDb.js';
+import { cloudStorage } from './cloudStorage.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -371,7 +372,7 @@ app.post('/api/rooms/:roomId/publish', async (req, res) => {
   }
 });
 
-// 5. SECURE CLOUD FILE UPLOAD (Creator Only)
+// 5. SECURE CLOUD FILE UPLOAD & DIRECT CLOUD ROOM PERSISTENCE
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -386,8 +387,60 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'No file uploaded.' });
     }
 
-    // Upload to active storage provider (Cloudinary, Supabase, or persistent disk)
+    // 1. Upload to active cloud storage provider (Cloudinary, Supabase, or persistent disk)
     const uploadResult = await cloudStorage.uploadFile(req.file);
+
+    // 2. Persist directly to cloud database under shared room code if provided
+    const roomCode = req.body?.roomCode || req.query?.roomCode;
+    const roomId = req.body?.roomId || req.query?.roomId;
+    const caption = req.body?.caption || req.body?.title || req.file.originalname;
+    const uploader = req.body?.uploader || 'creator';
+    const targetRoom = req.body?.room || 'museum';
+    const photoIndex = req.body?.photoIndex !== undefined && req.body?.photoIndex !== '' ? parseInt(req.body.photoIndex, 10) : null;
+
+    let updatedRoom = null;
+    let target = null;
+    if (roomCode) {
+      target = await cloudDb.getRoomByCode(roomCode);
+    } else if (roomId) {
+      target = await cloudDb.getRoomById(roomId);
+    }
+
+    if (target) {
+      if (!target.museumConfiguration) target.museumConfiguration = { photos: [] };
+      if (!Array.isArray(target.museumConfiguration.photos)) target.museumConfiguration.photos = [];
+
+      const photoRecord = {
+        id: photoIndex !== null && photoIndex >= 0 ? (photoIndex + 1) : (target.museumConfiguration.photos.length + 1),
+        title: caption,
+        caption: caption,
+        image: uploadResult.url,
+        url: uploadResult.url,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        location: req.body?.location || 'Our Peaceful Sanctuary',
+        letter: req.body?.letter || (photoIndex !== null && target.museumConfiguration.photos[photoIndex]?.letter) || '',
+        uploader: uploader,
+        room: targetRoom,
+        uploadedAt: new Date().toISOString(),
+        timestamp: Date.now(),
+        provider: uploadResult.provider,
+        size: uploadResult.size,
+      };
+
+      if (photoIndex !== null && photoIndex >= 0 && photoIndex < target.museumConfiguration.photos.length) {
+        target.museumConfiguration.photos[photoIndex] = {
+          ...target.museumConfiguration.photos[photoIndex],
+          ...photoRecord,
+        };
+      } else {
+        target.museumConfiguration.photos.push(photoRecord);
+      }
+
+      target.updatedAt = new Date().toISOString();
+      await cloudDb.saveRoom(target);
+      updatedRoom = target;
+      console.log(`[Photo Persisted] Room ${target.roomCode}: Photo saved to cloud database -> ${uploadResult.url}`);
+    }
 
     res.json({
       success: true,
@@ -395,17 +448,94 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       provider: uploadResult.provider,
       filename: uploadResult.originalName,
       originalName: uploadResult.originalName,
+      caption,
+      uploader,
+      room: targetRoom,
+      timestamp: Date.now(),
       size: uploadResult.size,
       mimetype: uploadResult.mimetype,
+      roomData: updatedRoom,
     });
   } catch (err) {
     console.error('Error handling upload:', err);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-    res.status(500).json({ success: false, error: 'Failed to upload media.' });
+    res.status(500).json({ success: false, error: err.message || 'Failed to upload media.' });
   }
 });
 
-// 6. HEALTH CHECK & STATUS ENDPOINT
+// 6. DELETE PHOTO (Only with uploader/creator token - never automatic!)
+app.delete('/api/rooms/:roomId/photos/:photoId', async (req, res) => {
+  try {
+    const { roomId, photoId } = req.params;
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.replace(/^Bearer\s+/i, '');
+
+    const room = await cloudDb.getRoomById(roomId);
+    if (!room) {
+      return res.status(404).json({ success: false, error: 'Room not found.' });
+    }
+
+    if (!token || room.creatorToken !== token) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized. Only the creator/uploader can delete photos.',
+      });
+    }
+
+    if (room.museumConfiguration && Array.isArray(room.museumConfiguration.photos)) {
+      const pId = isNaN(photoId) ? photoId : parseInt(photoId, 10);
+      room.museumConfiguration.photos = room.museumConfiguration.photos.filter(
+        (p) => p.id !== pId && String(p.id) !== String(photoId)
+      );
+      room.updatedAt = new Date().toISOString();
+      await cloudDb.saveRoom(room);
+      console.log(`[Photo Deleted] Room ${room.roomCode}: Photo ${photoId} deleted by uploader.`);
+    }
+
+    res.json({ success: true, room });
+  } catch (err) {
+    console.error('Error deleting photo:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete photo.' });
+  }
+});
+
+// Helper: Print startup diagnostics showing active providers and missing variable names (never values)
+function printStartupDiagnostics() {
+  const dbStatus = cloudDb.getDbStatus();
+  const storageStatus = cloudStorage.getStorageStatus();
+
+  console.log('====================================================');
+  console.log('       OUR FOREVER WORLD - BACKEND STARTUP STATUS    ');
+  console.log('====================================================');
+  console.log(`[Database] Active Provider: ${dbStatus.provider} (${dbStatus.details})`);
+  console.log(`[Storage]  Active Provider: ${storageStatus.provider} (${storageStatus.details})`);
+  console.log('----------------------------------------------------');
+
+  const missingDbVars = [];
+  if (!process.env.MONGO_URI && !process.env.MONGODB_URI) {
+    missingDbVars.push('MONGO_URI (or MONGODB_URI)');
+  }
+
+  const missingStorageVars = [];
+  if (!process.env.CLOUDINARY_URL && !process.env.CLOUDINARY_CLOUD_NAME) {
+    missingStorageVars.push('CLOUDINARY_URL (or CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET)');
+  }
+
+  if (missingDbVars.length > 0) {
+    console.log(`[Database Notice] Missing Cloud Database variable names: ${missingDbVars.join(', ')}`);
+  } else {
+    console.log('[Database] Cloud database environment variables detected.');
+  }
+
+  if (missingStorageVars.length > 0) {
+    console.log(`[Storage Notice] Missing Cloud Storage variable names: ${missingStorageVars.join(', ')}`);
+  } else {
+    console.log('[Storage] Cloud storage environment variables detected.');
+  }
+  console.log('====================================================\n');
+}
+
+// 7. HEALTH CHECK & STATUS ENDPOINT
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -435,6 +565,7 @@ export default app;
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
 if (isMain && !process.env.VERCEL) {
+  printStartupDiagnostics();
   app.listen(PORT, () => {
     console.log(`Forever World Backend running on port ${PORT}`);
   });

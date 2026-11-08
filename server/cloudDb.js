@@ -5,6 +5,18 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Automatically load local .env if present (native in Node 20+)
+if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile('.env');
+  } catch (e) {}
+}
+
+function cleanEnv(val) {
+  if (!val) return '';
+  return String(val).trim().replace(/^["']|["']$/g, '').trim();
+}
+
 const dataDir = path.join(__dirname, 'data');
 const roomsFile = path.join(dataDir, 'rooms.json');
 
@@ -31,19 +43,40 @@ export class CloudDbService {
   }
 
   detectProvider() {
-    if (process.env.MONGO_URI || process.env.MONGODB_URI) {
+    const mongoUri = cleanEnv(process.env.MONGO_URI || process.env.MONGODB_URI);
+    if (mongoUri) {
       return 'mongodb';
     }
-    if (process.env.MONGODB_DATA_API_URL && process.env.MONGODB_API_KEY) {
+    const dataApiUrl = cleanEnv(process.env.MONGODB_DATA_API_URL);
+    const dataApiKey = cleanEnv(process.env.MONGODB_API_KEY);
+    if (dataApiUrl && dataApiKey) {
       return 'mongodb_data_api';
     }
-    if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY)) {
+    const supabaseUrl = cleanEnv(process.env.SUPABASE_URL);
+    const supabaseKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY);
+    if (supabaseUrl && supabaseKey) {
       return 'supabase';
     }
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+    const upstashUrl = cleanEnv(process.env.UPSTASH_REDIS_REST_URL);
+    const upstashToken = cleanEnv(process.env.UPSTASH_REDIS_REST_TOKEN);
+    if (upstashUrl && upstashToken) {
       return 'upstash';
     }
     return 'local_file';
+  }
+
+  ensureProvider() {
+    if (this.provider === 'local_file') {
+      const detected = this.detectProvider();
+      if (detected !== 'local_file') {
+        this.provider = detected;
+        console.log(`[Database] Dynamically upgraded provider to: ${this.provider}`);
+        if (this.provider === 'mongodb' && !this.mongoCollection && !this.mongoConnecting) {
+          this.initMongo().catch(() => {});
+        }
+      }
+    }
+    return this.provider;
   }
 
   async initMongo() {
@@ -58,12 +91,13 @@ export class CloudDbService {
           const mongoPkg = await import('mongodb');
           MongoClient = mongoPkg.MongoClient;
         }
-        const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        const rawUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+        const uri = cleanEnv(rawUri);
         if (!uri) {
           throw new Error('Neither MONGO_URI nor MONGODB_URI is provided.');
         }
 
-        const explicitDbName = process.env.MONGODB_DB_NAME;
+        const explicitDbName = cleanEnv(process.env.MONGODB_DB_NAME);
 
         this.mongoClient = new MongoClient(uri, {
           serverSelectionTimeoutMS: 6000,
@@ -101,17 +135,18 @@ export class CloudDbService {
   }
 
   getDbStatus() {
+    const p = this.ensureProvider();
     return {
-      provider: this.provider,
-      isCloud: this.provider !== 'local_file',
+      provider: p,
+      isCloud: p !== 'local_file',
       details:
-        this.provider === 'mongodb'
-          ? `MongoDB Atlas (Database: "${this.mongoDb?.databaseName || process.env.MONGODB_DB_NAME || 'our_forever_world'}", Connected: ${Boolean(this.mongoCollection)})`
-          : this.provider === 'mongodb_data_api'
+        p === 'mongodb'
+          ? `MongoDB Atlas (Database: "${this.mongoDb?.databaseName || cleanEnv(process.env.MONGODB_DB_NAME) || 'our_forever_world'}", Connected: ${Boolean(this.mongoCollection)})`
+          : p === 'mongodb_data_api'
           ? 'MongoDB Atlas Data API'
-          : this.provider === 'supabase'
-          ? `Supabase PostgreSQL (URL: ${process.env.SUPABASE_URL})`
-          : this.provider === 'upstash'
+          : p === 'supabase'
+          ? `Supabase PostgreSQL (URL: ${cleanEnv(process.env.SUPABASE_URL)})`
+          : p === 'upstash'
           ? 'Upstash Serverless Redis'
           : 'Local File Database (server/data/rooms.json)',
     };
@@ -142,6 +177,7 @@ export class CloudDbService {
 
   async getRoomByCode(roomCode) {
     if (!roomCode) return null;
+    this.ensureProvider();
     const cleanCode = roomCode.trim().toUpperCase();
 
     // 1. MongoDB Atlas
@@ -212,6 +248,7 @@ export class CloudDbService {
 
   async getRoomById(roomId) {
     if (!roomId) return null;
+    this.ensureProvider();
 
     // 1. MongoDB Atlas
     if (this.provider === 'mongodb') {
@@ -278,6 +315,7 @@ export class CloudDbService {
 
   async saveRoom(room) {
     if (!room || !room.roomId) throw new Error('Cannot save room without roomId.');
+    this.ensureProvider();
 
     // Always mirror to local file for backup and instant local access
     const localRooms = this._readLocalRooms();

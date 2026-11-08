@@ -15,6 +15,7 @@ import {
   Eye,
   Loader2,
   Share2,
+  Trash2,
 } from 'lucide-react';
 import { gameStore, useGameStore } from '../../hooks/useGameStore';
 import { roomApi } from '../../services/roomApi';
@@ -32,6 +33,7 @@ export default function CreatorPanel() {
   const [activeTab, setActiveTab] = useState(0); // 0: Museum, 1: Singing, 2: Dancing, 3: Bedroom
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [publishModalOpen, setPublishModalOpen] = useState(false);
@@ -47,18 +49,30 @@ export default function CreatorPanel() {
     gameStore.set({ creatorEditPanel: null });
   };
 
-  // 1. Photo File Upload
+  // 1. Photo File Upload with automatic resizing and cloud database persistence
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsUploading(true);
-      const res = await roomApi.uploadMedia(file, creatorToken);
+      setUploadError('');
+      const res = await roomApi.uploadMedia(file, creatorToken, {
+        roomCode,
+        roomId,
+        photoIndex: selectedPhotoIndex,
+        caption: activePhoto.title || `Memory 0${selectedPhotoIndex + 1}`,
+        room: 'museum',
+        uploader: 'creator',
+      });
       const updatedPhotos = [...photos];
       updatedPhotos[selectedPhotoIndex] = {
         ...updatedPhotos[selectedPhotoIndex],
         image: res.url,
+        url: res.url,
+        caption: res.caption || updatedPhotos[selectedPhotoIndex].title,
+        uploader: 'creator',
+        uploadedAt: new Date().toISOString(),
       };
 
       const newConfig = {
@@ -74,9 +88,47 @@ export default function CreatorPanel() {
         museumConfiguration: newConfig.museumConfiguration,
       });
     } catch (err) {
-      alert(err.message || 'Error uploading photograph.');
+      setUploadError(err.message || 'Error uploading photograph to cloud storage.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Safe manual photo deletion (Never automatic!)
+  const handleDeletePhoto = async () => {
+    if (!activePhoto?.image) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${activePhoto.title || 'this photo'}" from your world? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsSaving(true);
+      const photoId = activePhoto.id || (selectedPhotoIndex + 1);
+      const updatedPhotos = [...photos];
+      updatedPhotos[selectedPhotoIndex] = {
+        ...updatedPhotos[selectedPhotoIndex],
+        image: null,
+        url: null,
+      };
+
+      const newConfig = {
+        ...roomData,
+        museumConfiguration: {
+          ...roomData.museumConfiguration,
+          photos: updatedPhotos,
+        },
+      };
+
+      gameStore.setRoomData(newConfig);
+      await roomApi.updateRoom(roomId, creatorToken, {
+        museumConfiguration: newConfig.museumConfiguration,
+      });
+      await roomApi.deletePhoto(roomId, creatorToken, photoId).catch(() => {});
+    } catch (err) {
+      alert(err.message || 'Failed to delete photo.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -327,18 +379,44 @@ export default function CreatorPanel() {
                       className="w-28 h-36 object-cover rounded-xl border border-amber-300/40 shadow-md"
                     />
                     <div className="space-y-2">
-                      <label className="btn-romantic py-2 px-4 text-xs font-bold inline-flex items-center gap-2 cursor-pointer shadow">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Upload Photograph</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
-                      </label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <label className={`btn-romantic py-2 px-4 text-xs font-bold inline-flex items-center gap-2 cursor-pointer shadow ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                          {isUploading ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Upload className="w-3.5 h-3.5" />
+                          )}
+                          <span>{isUploading ? 'Uploading to Cloud...' : 'Upload Photograph'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            disabled={isUploading}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {activePhoto.image && (
+                          <button
+                            type="button"
+                            onClick={handleDeletePhoto}
+                            className="px-3 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/40 text-red-300 text-xs font-semibold flex items-center gap-1.5 transition shadow"
+                            title="Delete photo after confirmation"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            <span>Delete</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {uploadError && (
+                        <div className="p-2 rounded-xl bg-red-950/80 border border-red-500/50 text-[11px] text-red-200">
+                          {uploadError}
+                        </div>
+                      )}
+
                       <p className="text-[11px] text-gray-400">
-                        Supports JPG, PNG, WEBP. Stored securely on server.
+                        Auto-resizes to 1600px max. Stored permanently in cloud.
                       </p>
                     </div>
                   </div>

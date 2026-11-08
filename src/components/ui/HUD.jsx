@@ -98,6 +98,22 @@ export default function HUD({ audioManager }) {
 
         {/* Audio Mute & Graphics Quality Toggles */}
         <div className="flex items-center gap-2">
+          {/* Bedroom Quick View Letter Button */}
+          {scene === 'bedroom' && (
+            <button
+              id="btn-bedroom-quick-letter"
+              onClick={() => {
+                romanticAudio.playSparkle();
+                gameStore.set({ isBirthdayLetterModalOpen: true });
+              }}
+              className="glass-panel-gold px-3 sm:px-4 h-10 sm:h-11 rounded-full flex items-center gap-1.5 text-amber-200 border-amber-300/60 hover:scale-105 transition shadow-lg text-xs font-bold"
+              title="View Birthday Letter"
+            >
+              <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400 animate-pulse" />
+              <span>VIEW LETTER 📜</span>
+            </button>
+          )}
+
           {/* Quality Toggle with Badge (LOW | MED | HIGH) */}
           <button
             id="btn-toggle-quality"

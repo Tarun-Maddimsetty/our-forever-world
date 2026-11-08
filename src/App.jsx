@@ -19,6 +19,7 @@ import RomanticSafeModeGallery from './components/ui/RomanticSafeModeGallery';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { useAudioManager } from './hooks/useAudioManager';
 import { gameStore, useGameStore } from './hooks/useGameStore';
+import { roomApi } from './services/roomApi';
 
 // Gentle 3D fallback so WebGL Canvas is NEVER pitch black while loading
 function Romantic3DLoader() {
@@ -246,6 +247,31 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isActionPressed, nearbyObject, audioManager]);
+
+  // 10-second automatic polling: syncs new photos, letters, and configuration across devices without refresh
+  useEffect(() => {
+    if (mode === 'landing') return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const cur = gameStore.get();
+        if (cur.mode === 'landing' || !cur.roomCode) return;
+
+        const data = await roomApi.getRoom(cur.roomCode, cur.creatorToken);
+        if (data && data.room) {
+          const currentUpdatedAt = cur.roomData?.updatedAt;
+          if (data.room.updatedAt && data.room.updatedAt !== currentUpdatedAt) {
+            console.log('[Sync] Received updated room data from cloud sanctuary:', data.room.roomCode);
+            gameStore.setRoomData(data.room);
+          }
+        }
+      } catch (err) {
+        // Silently handle temporary network glitches
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [mode]);
 
   const handleLaunchSafeMode = () => {
     console.log('[Recovery] Launching Safe Mode (Smooth 3D)...');
