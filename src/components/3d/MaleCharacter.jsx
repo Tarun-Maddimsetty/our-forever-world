@@ -328,18 +328,15 @@ export default function MaleCharacter({ controls, joystickVector }) {
     }
   }, [currentRoom]);
 
-  // REQUIREMENT 4 & 9: The Museum must contain ONLY the female character.
-  // The male character must NEVER appear in this room under any mode.
-  if (currentRoom === 'museum') {
-    return null;
-  }
-
   const isPresentingNecklace = currentRoom === 'bedroom' && bedroomStep === 'necklace';
   const isHoldingHand = currentRoom === 'bedroom' && (bedroomStep === 'walking_to_bed' || bedroomStep === 'sitting_on_bed');
   const isSitting = currentRoom === 'bedroom' && !specialAction && (bedroomStep === 'sitting_on_bed' || bedroomStep === 'voice_message' || bedroomStep === 'final');
 
   useFrame((state, delta) => {
     if (!maleGroupRef.current) return;
+    // In Museum, the male character is inactive and hidden
+    if (currentRoom === 'museum') return;
+
     const time = state.clock.getElapsedTime();
 
     // A. Creator Mode (When NOT in preview): Male character is the active player!
@@ -482,20 +479,26 @@ export default function MaleCharacter({ controls, joystickVector }) {
   });
 
   return (
-    <group ref={maleGroupRef} position={[0, 0, 8]}>
-      <ProceduralAnimeMale
-        isMoving={isMoving}
-        isSitting={isSitting}
-        isPresentingNecklace={isPresentingNecklace}
-        isHoldingHand={isHoldingHand}
-        specialAction={
-          currentRoom === 'singing' && (specialAction === 'singing' || isSingingPlaying)
-            ? 'singing'
-            : currentRoom === 'dancing' && (specialAction === 'dance' || isDanceMusicPlaying)
-            ? 'dance'
-            : specialAction
-        }
-      />
+    <group
+      ref={maleGroupRef}
+      position={[0, 0, 8]}
+      visible={currentRoom !== 'museum'}
+    >
+      {currentRoom !== 'museum' && (
+        <ProceduralAnimeMale
+          isMoving={isMoving}
+          isSitting={isSitting}
+          isPresentingNecklace={isPresentingNecklace}
+          isHoldingHand={isHoldingHand}
+          specialAction={
+            currentRoom === 'singing' && (specialAction === 'singing' || isSingingPlaying)
+              ? 'singing'
+              : currentRoom === 'dancing' && (specialAction === 'dance' || isDanceMusicPlaying)
+              ? 'dance'
+              : specialAction
+          }
+        />
+      )}
     </group>
   );
 }

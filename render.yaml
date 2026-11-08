@@ -13,15 +13,13 @@ services:
         value: 10000
       - key: ALLOWED_ORIGINS
         value: "*"
-      # Cloud Persistent Database Variables (Optional: Supabase or Upstash)
-      # - key: SUPABASE_URL
+      # MongoDB Atlas Connection URI (Add via Render Dashboard -> Environment)
+      # - key: MONGO_URI
       #   sync: false
-      # - key: SUPABASE_KEY
+      # - key: MONGODB_URI
       #   sync: false
-      # Cloud Media Storage Variables (Optional: Cloudinary)
-      # - key: CLOUDINARY_CLOUD_NAME
-      #   sync: false
-      # - key: CLOUDINARY_API_KEY
-      #   sync: false
-      # - key: CLOUDINARY_API_SECRET
+      # - key: MONGODB_DB_NAME
+      #   value: our_forever_world
+      # Cloudinary Media Storage (Add via Render Dashboard -> Environment)
+      # - key: CLOUDINARY_URL
       #   sync: false

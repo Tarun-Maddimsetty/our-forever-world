@@ -18,25 +18,44 @@ function loadSavedSession() {
 
 const savedSession = loadSavedSession();
 
+const GRAPHICS_STORAGE_KEY = 'forever_world_graphics_mode';
+
 // Automatic device detection heuristic for initial quality
 function detectOptimalStartingQuality() {
+  try {
+    const directSaved = localStorage.getItem(GRAPHICS_STORAGE_KEY);
+    if (directSaved && (directSaved === 'low' || directSaved === 'medium' || directSaved === 'high')) {
+      return directSaved;
+    }
+  } catch (e) {}
+
   if (savedSession?.graphicsQuality) {
     return savedSession.graphicsQuality;
   }
-  if (typeof window === 'undefined') return 'high';
+  if (typeof window === 'undefined') return 'low';
   try {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const memory = navigator.deviceMemory || 8;
+    const memory = navigator.deviceMemory || 4;
     const cores = navigator.hardwareConcurrency || 4;
 
-    if (isMobile) {
-      return memory <= 4 ? 'low' : 'medium';
+    // Mobile devices or systems with <= 4GB RAM or <= 4 cores default to 'low' (Safe Mode)
+    if (isMobile || memory <= 4 || cores <= 4) {
+      return 'low';
     }
-    if (memory <= 4 || cores <= 2) {
-      return 'medium';
+
+    // Check if WebGL2 is available without leaking a context
+    const canvas = document.createElement('canvas');
+    const gl2 = canvas.getContext('webgl2');
+    if (!gl2) {
+      return 'low';
     }
-  } catch (e) {}
-  return 'high';
+    const ext = gl2.getExtension('WEBGL_lose_context');
+    if (ext) ext.loseContext();
+
+    return 'medium';
+  } catch (e) {
+    return 'low';
+  }
 }
 
 const state = {
@@ -118,6 +137,7 @@ function saveSessionState() {
       graphicsQuality: state.graphicsQuality,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(dataToSave));
+    localStorage.setItem(GRAPHICS_STORAGE_KEY, state.graphicsQuality);
   } catch (e) {
     console.warn('Could not save session to localStorage:', e);
   }

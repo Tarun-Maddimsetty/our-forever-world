@@ -292,18 +292,10 @@ export default function MuseumRoom() {
         </mesh>
       </group>
 
-      {/* Grand Chandeliers down the central gallery axis */}
-      <Chandelier position={[0, 4.8, 9]} enableLight={isRoomActive} />
-      <Chandelier position={[0, 4.8, 1]} enableLight={false} />
-      <Chandelier position={[0, 4.8, -7]} enableLight={isRoomActive} />
-
-      {/* Gallery Wall Wash Point Lights (Warm ambient fill for both walls) */}
-      {isRoomActive && (
-        <>
-          <pointLight position={[-4.5, 3.2, 0]} intensity={1.1} distance={15} decay={2} color="#ffe0a3" />
-          <pointLight position={[4.5, 3.2, 0]} intensity={1.1} distance={15} decay={2} color="#ffe0a3" />
-        </>
-      )}
+      {/* Grand Chandeliers down the central gallery axis (1 central light) */}
+      <Chandelier position={[0, 4.8, 9]} enableLight={false} />
+      <Chandelier position={[0, 4.8, 1]} enableLight={isRoomActive} />
+      <Chandelier position={[0, 4.8, -7]} enableLight={false} />
 
       {/* Classical Columns flanking gallery */}
       {[-5.8, 5.8].map((x) =>

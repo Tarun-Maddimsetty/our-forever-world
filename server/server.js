@@ -12,6 +12,13 @@ import { cloudStorage } from './cloudStorage.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Automatically load local .env if present (native in Node 20+)
+if (fs.existsSync('.env') && typeof process.loadEnvFile === 'function') {
+  try {
+    process.loadEnvFile('.env');
+  } catch (e) {}
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 

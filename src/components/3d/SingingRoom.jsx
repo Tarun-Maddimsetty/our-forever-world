@@ -99,14 +99,9 @@ export default function SingingRoom() {
         ))}
       </group>
 
-      {/* Wall Wash Lighting (2 efficient lights instead of 10) */}
+      {/* Soft Ambient Fill Light */}
       {isRoomActive && (
-        <>
-          <pointLight position={[-4.5, 3.5, -30]} intensity={1.1} distance={15} decay={2} color="#ffdd99" />
-          <pointLight position={[4.5, 3.5, -30]} intensity={1.1} distance={15} decay={2} color="#ffdd99" />
-          {/* Soft Banquet seating fill light */}
-          <pointLight position={[0, 2.2, -25]} intensity={0.9} distance={12} decay={2} color="#ffaa55" />
-        </>
+        <pointLight position={[0, 3.2, -28]} intensity={1.4} distance={16} decay={2} color="#ffdd99" />
       )}
 
       {/* South Wall with Open Doorway to Museum (z = -16) */}
@@ -278,28 +273,6 @@ export default function SingingRoom() {
           <cylinderGeometry args={[0.2, 0.3, 0.4, 12]} />
           <meshStandardMaterial color="#222222" metalness={0.8} />
         </mesh>
-
-        {/* Spotlight Beams hitting stage center */}
-        {isRoomActive && (
-          <>
-            <spotLight
-              position={[-3.8, 5.6, 1.5]}
-              target-position={[0, 1.5, 1.2]}
-              angle={0.48}
-              penumbra={0.7}
-              intensity={2.8}
-              color={stageLightColor}
-            />
-            <spotLight
-              position={[3.8, 5.6, 1.5]}
-              target-position={[0, 1.5, 1.2]}
-              angle={0.48}
-              penumbra={0.7}
-              intensity={2.8}
-              color={stageLightColor}
-            />
-          </>
-        )}
 
         {/* Stage Sign Text */}
         <Text

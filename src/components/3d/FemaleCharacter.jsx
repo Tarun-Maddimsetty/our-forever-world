@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { useGLTF, useAnimations } from '@react-three/drei';
 import { gameStore, useGameStore } from '../../hooks/useGameStore';
 import { BIRTHDAY_CONTENT } from '../../data/birthdayContent';
 

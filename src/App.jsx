@@ -1,7 +1,7 @@
 import React, { useState, Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Loader } from '@react-three/drei';
-import { Sparkles, RefreshCw, ShieldCheck, Compass, AlertCircle } from 'lucide-react';
+import { Sparkles, RefreshCw, ShieldCheck, Compass, AlertCircle, Heart } from 'lucide-react';
 
 import Experience from './components/3d/Experience';
 import LandingPage from './components/ui/LandingPage';
@@ -14,6 +14,7 @@ import BirthdayLetterModal from './components/ui/BirthdayLetterModal';
 import VoicePlayerModal from './components/ui/VoicePlayerModal';
 import FinalSceneOverlay from './components/ui/FinalSceneOverlay';
 import PhotoModal from './components/ui/PhotoModal';
+import RomanticSafeModeGallery from './components/ui/RomanticSafeModeGallery';
 
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { useAudioManager } from './hooks/useAudioManager';
@@ -67,7 +68,13 @@ class CanvasErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('3D Canvas Error caught by Boundary:', error, info);
+    console.error('🚨 [3D Canvas Error caught by Boundary]:', error);
+    if (error?.stack) {
+      console.error('[Error Stack]:', error.stack);
+    }
+    if (info && info.componentStack) {
+      console.error('🚨 [Failing Component Hierarchy]:', info.componentStack);
+    }
   }
 
   handleSafeModeRecovery = () => {
@@ -76,6 +83,13 @@ class CanvasErrorBoundary extends React.Component {
     this.setState({ hasError: false, error: null });
     if (this.props.onResetCanvas) {
       this.props.onResetCanvas();
+    }
+  };
+
+  handleSwitchTo2D = () => {
+    this.setState({ hasError: false, error: null });
+    if (this.props.onSwitchTo2D) {
+      this.props.onSwitchTo2D();
     }
   };
 
@@ -120,12 +134,19 @@ class CanvasErrorBoundary extends React.Component {
                 className="btn-gold w-full py-3 px-4 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-950" />
-                <span>Launch in Safe Mode (Smooth)</span>
+                <span>Launch in Safe Mode (Smooth 3D)</span>
+              </button>
+              <button
+                onClick={this.handleSwitchTo2D}
+                className="btn-romantic w-full py-2.5 px-4 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
+              >
+                <Heart className="w-4 h-4 text-rose-300 fill-rose-300" />
+                <span>Explore in Romantic 2D Sanctuary</span>
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={this.handleRetryStandard}
-                  className="btn-romantic flex-1 py-2.5 px-3 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
+                  className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-xs text-gray-200 font-medium flex-1 flex items-center justify-center gap-1.5 transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-white" />
                   <span>Retry</span>
@@ -148,15 +169,21 @@ class CanvasErrorBoundary extends React.Component {
   }
 }
 
-// Check WebGL hardware support before attempting canvas initialization
+// Check WebGL hardware support without leaking a context
 function isWebGLAvailable() {
   if (typeof window === 'undefined') return true;
   try {
+    if (!window.WebGLRenderingContext) return false;
     const canvas = document.createElement('canvas');
-    return !!(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
-    );
+    const gl =
+      canvas.getContext('webgl2', { failIfMajorPerformanceCaveat: false }) ||
+      canvas.getContext('webgl', { failIfMajorPerformanceCaveat: false }) ||
+      canvas.getContext('experimental-webgl');
+    if (!gl) return false;
+    // Release immediately so it never counts against browser active context limit
+    const ext = gl.getExtension('WEBGL_lose_context');
+    if (ext) ext.loseContext();
+    return true;
   } catch (e) {
     return false;
   }
@@ -170,9 +197,11 @@ export default function App() {
   const graphicsQuality = useGameStore((s) => s.graphicsQuality);
 
   const [webglSupported] = useState(() => isWebGLAvailable());
+  const [is2DMode, setIs2DMode] = useState(false);
   const [recoveryState, setRecoveryState] = useState('active'); // 'active' | 'restoring' | 'failed'
   const [recoveryMessage, setRecoveryMessage] = useState('');
   const restoreTimeoutRef = useRef(null);
+  const retryCountRef = useRef(0);
   const [canvasKey, setCanvasKey] = useState(0);
 
   const [joystickVector, setJoystickVector] = useState({ x: 0, y: 0 });
@@ -219,7 +248,8 @@ export default function App() {
   }, [isActionPressed, nearbyObject, audioManager]);
 
   const handleLaunchSafeMode = () => {
-    console.log('[Recovery] Launching Safe Mode...');
+    console.log('[Recovery] Launching Safe Mode (Smooth 3D)...');
+    retryCountRef.current = 0;
     gameStore.set({ graphicsQuality: 'low' });
     setRecoveryState('active');
     setCanvasKey((k) => k + 1);
@@ -227,8 +257,15 @@ export default function App() {
 
   const handleRetrySanctuary = () => {
     console.log('[Recovery] Retrying standard sanctuary...');
+    retryCountRef.current = 0;
     setRecoveryState('active');
     setCanvasKey((k) => k + 1);
+  };
+
+  const handleLaunch2DMode = () => {
+    console.log('[Recovery] Launching 2D Romantic Sanctuary...');
+    setRecoveryState('active');
+    setIs2DMode(true);
   };
 
   const handleReturnToLanding = () => {
@@ -242,10 +279,14 @@ export default function App() {
       {mode === 'landing' && <LandingPage />}
 
       {/* 2. 3D WebGL Canvas for the 4 Connected Environments */}
-      <CanvasErrorBoundary onResetCanvas={() => setCanvasKey((k) => k + 1)}>
-        {webglSupported ? (
+      <CanvasErrorBoundary
+        onResetCanvas={() => setCanvasKey((k) => k + 1)}
+        onSwitchTo2D={handleLaunch2DMode}
+      >
+        {webglSupported && !is2DMode ? (
           <Canvas
             key={canvasKey}
+            frameloop={mode === 'landing' ? 'never' : 'always'}
             shadows={graphicsQuality === 'high'}
             camera={{ position: [0, 3, 14], fov: 45 }}
             gl={{
@@ -257,7 +298,13 @@ export default function App() {
               stencil: false,
               depth: true,
             }}
-            dpr={graphicsQuality === 'low' ? 1 : graphicsQuality === 'medium' ? 1.25 : [1, 1.5]}
+            dpr={
+              graphicsQuality === 'low'
+                ? 1
+                : graphicsQuality === 'medium'
+                ? Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.25)
+                : Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, 1.5)
+            }
             onCreated={({ gl }) => {
               const canvasEl = gl.domElement;
               if (!canvasEl) return;
@@ -265,21 +312,39 @@ export default function App() {
               const handleContextLost = (e) => {
                 // Crucial per WebGL spec: preventDefault signals intent to restore
                 e.preventDefault();
-                console.warn('[WebGL] Context lost detected. Entering graceful recovery...');
-                setRecoveryState('restoring');
-                setRecoveryMessage('Re-establishing graphics connection...');
+                const reason = e.statusMessage || 'GPU hardware context lost';
+                console.warn(
+                  `[WebGL] Context lost detected: ${reason}. Active retries: ${retryCountRef.current}/2`
+                );
 
-                if (restoreTimeoutRef.current) clearTimeout(restoreTimeoutRef.current);
-                // 4-second timeout: prevent infinite loop if browser never restores
-                restoreTimeoutRef.current = setTimeout(() => {
-                  console.warn('[WebGL] Automatic restoration timed out. Providing safe options.');
+                if (retryCountRef.current < 2) {
+                  retryCountRef.current += 1;
+                  setRecoveryState('restoring');
+                  setRecoveryMessage(
+                    `Auto-optimizing 3D graphics for your device (attempt ${retryCountRef.current}/2)...`
+                  );
+
+                  // Automatically step down to low/safe mode to prevent repeated crashes
+                  gameStore.set({ graphicsQuality: 'low' });
+
+                  if (restoreTimeoutRef.current) clearTimeout(restoreTimeoutRef.current);
+                  restoreTimeoutRef.current = setTimeout(() => {
+                    console.log('[WebGL] Automatically restoring 3D canvas in Safe Mode...');
+                    setRecoveryState('active');
+                    setCanvasKey((k) => k + 1);
+                  }, 1200);
+                } else {
+                  console.warn('[WebGL] Automatic retries exhausted. Presenting safe recovery options.');
                   setRecoveryState('failed');
-                  setRecoveryMessage('Graphics connection paused. You can resume smoothly in Safe Mode.');
-                }, 4000);
+                  setRecoveryMessage(
+                    'Graphics connection paused. You can resume smoothly in Safe Mode or Romantic 2D Sanctuary.'
+                  );
+                }
               };
 
               const handleContextRestored = () => {
                 console.log('[WebGL] Context successfully restored.');
+                retryCountRef.current = 0;
                 if (restoreTimeoutRef.current) clearTimeout(restoreTimeoutRef.current);
                 setRecoveryState('active');
               };
@@ -299,7 +364,7 @@ export default function App() {
         ) : null}
       </CanvasErrorBoundary>
 
-      {/* WebGL Genuine In-Flight Recovery Indicator Overlay (Active during legitimate restoration with timeout) */}
+      {/* WebGL Genuine In-Flight Recovery Indicator Overlay */}
       {recoveryState === 'restoring' && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0b0813]/90 backdrop-blur-sm select-none p-6">
           <div className="glass-panel-gold rounded-3xl p-8 max-w-sm w-full text-center space-y-4 border border-amber-300/40 shadow-2xl">
@@ -310,14 +375,14 @@ export default function App() {
               Restoring 3D Sanctuary...
             </h3>
             <p className="text-xs text-rose-200/90 leading-relaxed font-light">
-              Adapting graphics resources for smooth performance.
+              {recoveryMessage || 'Adapting graphics resources for smooth performance.'}
             </p>
           </div>
         </div>
       )}
 
       {/* Safe Fallback Modal (Displayed if automatic recovery timed out or WebGL unavailable) */}
-      {(recoveryState === 'failed' || !webglSupported) && (
+      {(recoveryState === 'failed' || !webglSupported) && !is2DMode && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0b0813]/95 backdrop-blur-md select-none p-6">
           <div className="glass-panel-gold rounded-3xl p-8 max-w-md w-full text-center space-y-5 border-2 border-rose-400/50 shadow-2xl">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center mx-auto text-amber-300">
@@ -339,15 +404,22 @@ export default function App() {
                 className="btn-gold w-full py-3 px-4 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4 text-amber-950" />
-                <span>Launch in Safe Mode (Smooth)</span>
+                <span>Launch in Safe Mode (Smooth 3D)</span>
+              </button>
+              <button
+                onClick={handleLaunch2DMode}
+                className="btn-romantic w-full py-2.5 px-4 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
+              >
+                <Heart className="w-4 h-4 text-rose-300 fill-rose-300" />
+                <span>Explore in Romantic 2D Sanctuary (No GPU Required)</span>
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={handleRetrySanctuary}
-                  className="btn-romantic flex-1 py-2.5 px-3 text-xs font-bold shadow-lg flex items-center justify-center gap-1.5"
+                  className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-xs text-gray-200 font-medium flex-1 flex items-center justify-center gap-1.5 transition"
                 >
                   <RefreshCw className="w-3.5 h-3.5 text-white" />
-                  <span>Retry</span>
+                  <span>Retry Standard 3D</span>
                 </button>
                 <button
                   onClick={handleReturnToLanding}
@@ -362,20 +434,33 @@ export default function App() {
         </div>
       )}
 
+      {/* 2D Romantic Sanctuary (when active) */}
+      {is2DMode && (
+        <RomanticSafeModeGallery
+          onSwitchTo3D={() => {
+            setIs2DMode(false);
+            setRecoveryState('active');
+            setCanvasKey((k) => k + 1);
+          }}
+        />
+      )}
+
       {/* 3. Room Navigation Bar (Museum -> Concert -> Ballroom -> Bedroom) */}
-      <RoomNavigationHUD audioManager={audioManager} />
+      {!is2DMode && <RoomNavigationHUD audioManager={audioManager} />}
 
       {/* 4. Creator Studio Editing Panel (Creator Mode Only) */}
-      <CreatorPanel />
+      {!is2DMode && <CreatorPanel />}
 
       {/* 5. In-Game Heads-Up Display (Progress, Prompts, Action Banners) */}
-      <HUD audioManager={audioManager} />
+      {!is2DMode && <HUD audioManager={audioManager} />}
 
       {/* 6. Mobile Virtual Joystick & Touch Controls */}
-      <MobileJoystick
-        onJoystickMove={setJoystickVector}
-        audioManager={audioManager}
-      />
+      {!is2DMode && (
+        <MobileJoystick
+          onJoystickMove={setJoystickVector}
+          audioManager={audioManager}
+        />
+      )}
 
       {/* 7. Memory Letter Modal */}
       <LetterModal />

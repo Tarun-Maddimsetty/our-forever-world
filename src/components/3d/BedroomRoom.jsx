@@ -397,16 +397,6 @@ export default function BedroomRoom() {
             <planeGeometry args={[3.2, 4.2]} />
             <meshStandardMaterial color="#bfe3ff" transparent opacity={0.25} roughness={0.1} />
           </mesh>
-          {isRoomActive && (
-            <spotLight
-              position={[0, 2, 1]}
-              target-position={[0, 0, 5]}
-              angle={0.65}
-              penumbra={0.8}
-              intensity={2.2}
-              color="#bfe3ff"
-            />
-          )}
         </group>
 
         {/* Velvet Window Curtains */}
@@ -465,17 +455,6 @@ export default function BedroomRoom() {
           </group>
         ))}
       </group>
-
-      {/* Bedroom Wall Wash and Fairy Ambient Glow Lights */}
-      {isRoomActive && (
-        <>
-          <pointLight position={[-4.5, 3.2, -90]} intensity={1.0} distance={14} decay={2} color="#ffe0b3" />
-          <pointLight position={[4.5, 3.2, -90]} intensity={1.0} distance={14} decay={2} color="#ffe0b3" />
-          {/* Ceiling Fairy Lights Ambient Fill */}
-          <pointLight position={[-3.5, 4.2, -90]} intensity={0.7} distance={12} decay={2} color="#ffddaa" />
-          <pointLight position={[3.5, 4.2, -90]} intensity={0.7} distance={12} decay={2} color="#ffddaa" />
-        </>
-      )}
 
       {/* South Wall with Open Doorway to Dancing Room (z = -76) */}
       <group position={[0, 3.2, -76]}>

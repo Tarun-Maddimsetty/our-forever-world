@@ -276,18 +276,6 @@ export default function MemoryStation({ memory, index }) {
       >
         {`MEMORY 0${index + 1}`}
       </Text>
-
-      {/* Soft Accent Spotlight (Active only when in Museum, no shadow map) */}
-      {currentRoom === 'museum' && (
-        <spotLight
-          ref={spotLightRef}
-          position={[0, 4.5, 1.8]}
-          angle={0.5}
-          penumbra={0.6}
-          intensity={1.0}
-          color="#fff4e0"
-        />
-      )}
     </group>
   );
 }

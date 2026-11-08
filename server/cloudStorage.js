@@ -12,11 +12,33 @@ import path from 'path';
 
 export class CloudStorageService {
   constructor() {
+    this.parseCloudinaryUrl();
     this.provider = this.detectProvider();
     console.log(`[Storage] Initialized with provider: ${this.provider}`);
   }
 
+  parseCloudinaryUrl() {
+    if (process.env.CLOUDINARY_URL) {
+      try {
+        const parsed = new URL(process.env.CLOUDINARY_URL);
+        if (parsed.protocol === 'cloudinary:') {
+          process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || parsed.username;
+          process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || parsed.password;
+          process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || parsed.hostname;
+        }
+      } catch (e) {
+        const match = process.env.CLOUDINARY_URL.match(/^cloudinary:\/\/([^:]+):([^@]+)@(.+)$/);
+        if (match) {
+          process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || match[1];
+          process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || match[2];
+          process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || match[3];
+        }
+      }
+    }
+  }
+
   detectProvider() {
+    this.parseCloudinaryUrl();
     if (process.env.CLOUDINARY_CLOUD_NAME && (process.env.CLOUDINARY_API_KEY || process.env.CLOUDINARY_UPLOAD_PRESET)) {
       return 'cloudinary';
     }

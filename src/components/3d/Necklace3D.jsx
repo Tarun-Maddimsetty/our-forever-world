@@ -23,10 +23,8 @@ export default function Necklace3D() {
     }
   });
 
-  if (!isPresenting) return null;
-
   return (
-    <group ref={necklaceRef} position={[0, 1.25, -24.1]}>
+    <group ref={necklaceRef} position={[0, 1.25, -24.1]} visible={isPresenting}>
       {/* Golden Chain Ring */}
       <mesh>
         <torusGeometry args={[0.12, 0.012, 12, 32]} />

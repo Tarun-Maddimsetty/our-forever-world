@@ -205,14 +205,6 @@ export default function DancingRoom() {
         ))}
       </group>
 
-      {/* Ballroom Wall Wash Point Lights (2 efficient lights instead of 8) */}
-      {isRoomActive && (
-        <>
-          <pointLight position={[-4.5, 3.2, -60]} intensity={1.1} distance={15} decay={2} color="#ffe0a3" />
-          <pointLight position={[4.5, 3.2, -60]} intensity={1.1} distance={15} decay={2} color="#ffe0a3" />
-        </>
-      )}
-
       {/* South Wall with Open Doorway to Singing Room (z = -46) */}
       <group position={[0, 3.2, -46]}>
         {/* Left Wall Panel */}

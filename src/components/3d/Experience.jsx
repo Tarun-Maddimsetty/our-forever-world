@@ -228,13 +228,7 @@ export default function Experience({ keyboardControls, joystickVector }) {
           intensity={1.2}
           color="#fff4e0"
           castShadow={graphicsQuality === 'high'}
-          shadow-mapSize={graphicsQuality === 'high' ? [1024, 1024] : [512, 512]}
-          shadow-camera-near={0.5}
-          shadow-camera-far={32}
-          shadow-camera-left={-10}
-          shadow-camera-right={10}
-          shadow-camera-top={16}
-          shadow-camera-bottom={-16}
+          shadow-mapSize={graphicsQuality === 'high' ? [512, 512] : [256, 256]}
         />
       )}
 
@@ -242,20 +236,15 @@ export default function Experience({ keyboardControls, joystickVector }) {
       {(currentRoom === 'singing' || currentRoom === 'museum' || currentRoom === 'dancing') && (
         <>
           <directionalLight position={[0, 10, -28]} intensity={1.3} color="#ffeef5" />
-          <spotLight
-            position={[-3, 7.5, -31]}
-            angle={0.55}
-            penumbra={0.7}
-            intensity={3.0}
-            color="#ffd700"
-          />
-          <spotLight
-            position={[3, 7.5, -31]}
-            angle={0.55}
-            penumbra={0.7}
-            intensity={3.0}
-            color="#ff758c"
-          />
+          {graphicsQuality === 'high' && (
+            <spotLight
+              position={[0, 7.5, -31]}
+              angle={0.55}
+              penumbra={0.7}
+              intensity={2.5}
+              color="#ffd700"
+            />
+          )}
         </>
       )}
 
@@ -263,15 +252,15 @@ export default function Experience({ keyboardControls, joystickVector }) {
       {(currentRoom === 'dancing' || currentRoom === 'singing' || currentRoom === 'bedroom') && (
         <>
           <directionalLight position={[4, 11, -60]} intensity={1.4} color="#ffe5cc" />
-          <pointLight position={[0, 5.2, -60]} intensity={3.0} color="#ffd700" distance={20} decay={1} />
+          <pointLight position={[0, 5.2, -60]} intensity={2.5} color="#ffd700" distance={16} decay={2} />
         </>
       )}
 
       {/* 4. BEDROOM ILLUMINATION (Z: -76 to -104) */}
       {(currentRoom === 'bedroom' || currentRoom === 'dancing') && (
         <>
-          <directionalLight position={[-2.8, 6.5, -98]} intensity={1.5} color="#d4e8ff" />
-          <pointLight position={[2.1, 3.2, -94.5]} intensity={2.2} color="#ffddaa" distance={16} decay={1} />
+          <directionalLight position={[-2.8, 6.5, -98]} intensity={1.4} color="#d4e8ff" />
+          <pointLight position={[2.1, 3.2, -94.5]} intensity={1.8} color="#ffddaa" distance={14} decay={2} />
         </>
       )}
 
@@ -330,7 +319,7 @@ export default function Experience({ keyboardControls, joystickVector }) {
       <MaleCharacter controls={keyboardControls} joystickVector={joystickVector} />
 
       {/* Floating Sparkles & Rose Petals */}
-      <FloatingPetals count={graphicsQuality === 'high' ? 80 : (graphicsQuality === 'medium' ? 50 : 30)} />
+      <FloatingPetals count={graphicsQuality === 'high' ? 45 : (graphicsQuality === 'medium' ? 25 : 15)} />
     </>
   );
 }

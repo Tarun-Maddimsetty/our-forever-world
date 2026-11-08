@@ -24,18 +24,16 @@ export default function LightBeacons() {
     if (!groupRef.current) return;
     const time = state.clock.getElapsedTime();
     // Shimmering wave effect along the path
-    groupRef.current.children.forEach((child, i) => {
-      const scale = isUnlocked
-        ? 1.0 + Math.sin(time * 3 - i * 0.8) * 0.35
-        : 0.001; // Hidden until unlocked
-      child.scale.set(scale, 1, scale);
-    });
+    if (isUnlocked) {
+      groupRef.current.children.forEach((child, i) => {
+        const scale = 1.0 + Math.sin(time * 3 - i * 0.8) * 0.35;
+        child.scale.set(scale, 1, scale);
+      });
+    }
   });
 
-  if (!isUnlocked) return null;
-
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} visible={isUnlocked}>
       {waypoints.map(([x, y, z], idx) => (
         <group key={idx} position={[x, y, z]}>
           {/* Glowing Golden Circle on Floor */}

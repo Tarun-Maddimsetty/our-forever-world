@@ -169,8 +169,7 @@ export default function ConnectedDoor({
         {`TO ${sourceName} 💫`}
       </Text>
 
-      {/* Warm Glow shining through doorway */}
-      <pointLight position={[0, 2.5, 0]} color="#ffd384" intensity={2.0} distance={10} decay={2} />
+      {/* Warm Glow Portal (Emissive & zero extra GPU light uniforms) */}
     </group>
   );
 }
