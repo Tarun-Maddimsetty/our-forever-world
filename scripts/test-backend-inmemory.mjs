@@ -82,7 +82,6 @@ async function runTests() {
   console.log('[Test 1] Health Check /api/health...');
   const healthRes = await callApp({ method: 'GET', url: '/api/health' });
   const healthData = await healthRes.json();
-  console.log('Health:', healthData);
   if (healthRes.status !== 200 || healthData.status !== 'ok') {
     throw new Error('Health check failed');
   }
@@ -95,97 +94,118 @@ async function runTests() {
   if (createRes.status !== 200 || !createData.success || !createData.roomCode) {
     throw new Error(`Failed to create room: ${JSON.stringify(createData)}`);
   }
-  const { roomId, roomCode, creatorToken } = createData;
-  console.log(`Created Room: ${roomCode} (ID: ${roomId})`);
-  console.log('✓ PASS: Creator room generated with unique room code and token\n');
+  const { roomId, roomCode, creatorToken, creatorKey } = createData;
+  const key = creatorKey || creatorToken;
+  console.log(`Created Room: ${roomCode} (ID: ${roomId}, Key: ${key.substring(0, 10)}...)`);
+  console.log('✓ PASS: Creator room generated with unique room code and secret creator key\n');
 
-  // TEST 3: Visitor Cannot Access Unpublished Draft Room
-  console.log('[Test 3] Visitor access to unpublished draft room...');
-  const draftRes = await callApp({ method: 'GET', url: `/api/rooms/${roomCode}` });
-  if (draftRes.status !== 403) {
-    throw new Error(`Expected 403 Forbidden for unpublished room, got ${draftRes.status}`);
+  // TEST 3: Visitor Joins with Room Code Only (View only, secrets stripped)
+  console.log('[Test 3] Visitor joins with Room Code GET /api/rooms/:roomCode...');
+  const joinRes = await callApp({ method: 'GET', url: `/api/rooms/${roomCode}` });
+  const joinData = await joinRes.json();
+  if (joinRes.status !== 200 || !joinData.room) {
+    throw new Error(`Visitor could not join: ${JSON.stringify(joinData)}`);
   }
-  const draftData = await draftRes.json();
-  console.log('Protection error message:', draftData.error);
-  console.log('✓ PASS: Visitor is strictly prevented from accessing unpublished room\n');
+  if (joinData.isCreator) {
+    throw new Error('Visitor should NOT have creator permissions');
+  }
+  if (joinData.room.creatorToken || joinData.room.creatorKey) {
+    throw new Error('SECURITY LEAK: creatorToken or creatorKey exposed to visitor!');
+  }
+  console.log('✓ PASS: Visitor successfully joined by code; secrets securely stripped\n');
 
-  // TEST 4: Creator Preview with Token Works on Draft
-  console.log('[Test 4] Creator preview with token on draft...');
-  const previewRes = await callApp({
+  // TEST 4: Creator Access with Creator Key
+  console.log('[Test 4] Creator access with creator key on GET /api/rooms/:roomCode...');
+  const creatorRes = await callApp({
     method: 'GET',
     url: `/api/rooms/${roomCode}`,
-    headers: { Authorization: `Bearer ${creatorToken}` },
+    headers: { Authorization: `Bearer ${key}` },
   });
-  const previewData = await previewRes.json();
-  console.log('Preview data:', previewData);
-  if (previewRes.status !== 200 || !previewData.isCreator) {
-    throw new Error('Creator preview failed');
+  const creatorData = await creatorRes.json();
+  if (creatorRes.status !== 200 || !creatorData.isCreator) {
+    throw new Error('Creator key authentication failed');
   }
-  console.log('✓ PASS: Creator preview mode verified\n');
+  console.log('✓ PASS: Creator key verified and creator privileges granted\n');
 
-  // TEST 5: Creator Updates Room Configuration
-  console.log('[Test 5] Update room configuration PUT /api/rooms/:roomId...');
+  // TEST 5: Creator Updates Photos and Configuration
+  console.log('[Test 5] Creator updates room photos & letters PUT /api/rooms/:roomId...');
+  const testPhotos = [
+    {
+      id: 1,
+      title: 'Our Starry Night Walk',
+      caption: 'Under the starlight',
+      image: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+      date: 'Dec 12, 2025',
+      location: 'Moonlit Beach',
+      letter: 'My love, that night will live in my soul forever.',
+      wall: 'west',
+      positionOffset: 0,
+      scale: 1.0,
+      uploader: 'creator',
+      timestamp: Date.now(),
+    },
+  ];
+
   const updateRes = await callApp({
     method: 'PUT',
     url: `/api/rooms/${roomId}`,
-    headers: { Authorization: `Bearer ${creatorToken}` },
+    headers: { Authorization: `Bearer ${key}` },
     body: {
-      title: 'Our Forever World ❤️',
+      title: 'Our Eternal Haven ❤️',
       husbandName: 'Tarun',
       wifeName: 'My Beloved Wife',
+      museumConfiguration: {
+        photos: testPhotos,
+      },
     },
   });
   const updateData = await updateRes.json();
-  if (updateRes.status !== 200 || updateData.room.husbandName !== 'Tarun') {
-    throw new Error('Failed to update room');
+  if (updateRes.status !== 200 || updateData.room.museumConfiguration.photos.length !== 1) {
+    throw new Error('Failed to update room configuration');
   }
-  console.log('✓ PASS: Room configuration updated and persisted\n');
+  console.log('✓ PASS: Room photos and configuration updated and persisted to database\n');
 
-  // TEST 6: Unauthorized Modification Blocked
+  // TEST 6: Unauthorized Modification Blocked on Server
   console.log('[Test 6] Security Check: unauthorized modification blocked...');
-  const fakeRes = await callApp({
+  const badEditRes = await callApp({
     method: 'PUT',
     url: `/api/rooms/${roomId}`,
-    headers: { Authorization: 'Bearer invalid_attacker_token' },
-    body: { title: 'Compromised Title' },
+    headers: { Authorization: 'Bearer bad_attacker_token' },
+    body: { title: 'Hacked Title' },
   });
-  if (fakeRes.status !== 403) {
-    throw new Error(`Expected 403 Forbidden, got ${fakeRes.status}`);
+  if (badEditRes.status !== 403) {
+    throw new Error(`Expected 403 Forbidden, got ${badEditRes.status}`);
   }
   console.log('✓ PASS: Unauthorized edit strictly rejected with 403 Forbidden\n');
 
-  // TEST 7: Creator Publishes Room
-  console.log('[Test 7] Publish Room POST /api/rooms/:roomId/publish...');
-  const pubRes = await callApp({
+  // TEST 7: Re-join with the SAME room code loads ALL photos without overwrite
+  console.log('[Test 7] RE-JOIN TEST: Re-join with the SAME room code...');
+  const rejoinRes = await callApp({ method: 'GET', url: `/api/rooms/${roomCode}` });
+  const rejoinData = await rejoinRes.json();
+  if (rejoinRes.status !== 200 || !rejoinData.room) {
+    throw new Error('Rejoin failed');
+  }
+  const rejoinedPhotos = rejoinData.room.museumConfiguration?.photos || [];
+  if (rejoinedPhotos.length !== 1 || rejoinedPhotos[0].title !== 'Our Starry Night Walk') {
+    throw new Error(`Photos missing on rejoin! Found: ${JSON.stringify(rejoinedPhotos)}`);
+  }
+  if (rejoinData.room.title !== 'Our Eternal Haven ❤️') {
+    throw new Error('Room title was overwritten on rejoin');
+  }
+  console.log(`✓ PASS: Re-join verified! Photo "${rejoinedPhotos[0].title}" persisted perfectly.\n`);
+
+  // TEST 8: Claiming Already Owned Room is Rejected
+  console.log('[Test 8] Attempt to claim already owned room POST /api/rooms/:roomCode/claim...');
+  const badClaimRes = await callApp({
     method: 'POST',
-    url: `/api/rooms/${roomId}/publish`,
-    headers: { Authorization: `Bearer ${creatorToken}` },
+    url: `/api/rooms/${roomCode}/claim`,
   });
-  const pubData = await pubRes.json();
-  if (pubRes.status !== 200 || !pubData.published) {
-    throw new Error('Failed to publish room');
+  if (badClaimRes.status !== 403) {
+    throw new Error(`Expected 403 Forbidden when claiming already owned room, got ${badClaimRes.status}`);
   }
-  console.log(`✓ PASS: Room published! Room Code: ${pubData.roomCode}\n`);
+  console.log('✓ PASS: Claiming already owned room is strictly rejected\n');
 
-  // TEST 8: Visitor Joins Published Room & Sanitization
-  console.log('[Test 8] Visitor joins published room GET /api/rooms/:roomCode...');
-  const visitorRes = await callApp({ method: 'GET', url: `/api/rooms/${roomCode}` });
-  const visitorData = await visitorRes.json();
-  if (visitorRes.status !== 200 || !visitorData.room) {
-    throw new Error('Visitor failed to fetch published room');
-  }
-  if (visitorData.isCreator) {
-    throw new Error('Visitor should not be flagged as creator');
-  }
-  if (visitorData.room.creatorToken) {
-    throw new Error('SECURITY VIOLATION: creatorToken leaked to visitor!');
-  }
-  if (visitorData.room.husbandName !== 'Tarun') {
-    throw new Error('Visitor received wrong data');
-  }
-  console.log('✓ PASS: Visitor successfully joined! creatorToken securely stripped.\n');
-
-  // TEST 9: Invalid Room Code Handling
+  // TEST 9: Non-existent room code returns 404
   console.log('[Test 9] Non-existent room code GET /api/rooms/UNKNOWN-9999...');
   const notFoundRes = await callApp({ method: 'GET', url: '/api/rooms/UNKNOWN-9999' });
   if (notFoundRes.status !== 404) {
@@ -193,8 +213,25 @@ async function runTests() {
   }
   console.log('✓ PASS: Non-existent room code returns 404 Not Found\n');
 
+  // TEST 10: Delete Room (Creator only)
+  console.log('[Test 10] Creator deletes room DELETE /api/rooms/:roomId...');
+  const delRes = await callApp({
+    method: 'DELETE',
+    url: `/api/rooms/${roomId}`,
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  if (delRes.status !== 200) {
+    throw new Error(`Failed to delete room: got status ${delRes.status}`);
+  }
+  // Verify room is deleted
+  const checkDelRes = await callApp({ method: 'GET', url: `/api/rooms/${roomCode}` });
+  if (checkDelRes.status !== 404) {
+    throw new Error(`Expected 404 after deletion, got ${checkDelRes.status}`);
+  }
+  console.log('✓ PASS: Creator deleted room; room is no longer accessible\n');
+
   console.log('====================================================');
-  console.log('  ALL BACKEND ENDPOINTS & PERMISSIONS VERIFIED 100% ');
+  console.log('  ALL PERSISTENCE & "MY ROOMS" TESTS PASSED 100%   ');
   console.log('====================================================');
 }
 

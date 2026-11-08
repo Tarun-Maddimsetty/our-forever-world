@@ -83,7 +83,8 @@ function createDefaultRoom(roomId, roomCode, creatorToken) {
     roomId,
     roomCode,
     creatorToken,
-    published: false,
+    creatorKey: creatorToken,
+    published: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     title: 'Our Forever World',
@@ -232,6 +233,7 @@ app.post('/api/rooms', async (req, res) => {
       roomId,
       roomCode,
       creatorToken,
+      creatorKey: creatorToken,
       room: newRoom,
     });
   } catch (err) {
@@ -256,20 +258,13 @@ app.get('/api/rooms/:roomCode', async (req, res) => {
       });
     }
 
-    const isCreator = token && room.creatorToken === token;
+    const isCreator = token && (room.creatorToken === token || room.creatorKey === token);
 
-    // Visitors can only see published rooms
-    if (!room.published && !isCreator) {
-      return res.status(403).json({
-        success: false,
-        error: 'This world has not been published yet. Please ask your love for the final code once he completes it.',
-      });
-    }
-
-    // Sanitized payload for visitor: NEVER expose creatorToken or secrets
+    // Sanitized payload for visitor: NEVER expose creatorToken or creatorKey
     const sanitizedRoom = { ...room };
     if (!isCreator) {
       delete sanitizedRoom.creatorToken;
+      delete sanitizedRoom.creatorKey;
     }
 
     res.json({
@@ -296,7 +291,8 @@ app.put('/api/rooms/:roomId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Room not found.' });
     }
 
-    if (!token || room.creatorToken !== token) {
+    const isAuthorized = token && (room.creatorToken === token || room.creatorKey === token);
+    if (!isAuthorized) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized. Only the creator has permission to modify this room.',
@@ -348,7 +344,8 @@ app.post('/api/rooms/:roomId/publish', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Room not found.' });
     }
 
-    if (!token || room.creatorToken !== token) {
+    const isAuthorized = token && (room.creatorToken === token || room.creatorKey === token);
+    if (!isAuthorized) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized. Only the creator can publish this room.',
@@ -383,6 +380,28 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(401).json({ success: false, error: 'Authentication token required.' });
     }
 
+    const roomCode = req.body?.roomCode || req.query?.roomCode;
+    const roomId = req.body?.roomId || req.query?.roomId;
+
+    let target = null;
+    if (roomCode) {
+      target = await cloudDb.getRoomByCode(roomCode);
+    } else if (roomId) {
+      target = await cloudDb.getRoomById(roomId);
+    }
+
+    // Verify creator key on the server if targeting a specific room
+    if (target && (target.creatorToken || target.creatorKey)) {
+      const isAuthorized = token === target.creatorToken || token === target.creatorKey;
+      if (!isAuthorized) {
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        return res.status(403).json({
+          success: false,
+          error: 'Unauthorized. Only the creator has permission to upload to this room.',
+        });
+      }
+    }
+
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No file uploaded.' });
     }
@@ -391,20 +410,12 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const uploadResult = await cloudStorage.uploadFile(req.file);
 
     // 2. Persist directly to cloud database under shared room code if provided
-    const roomCode = req.body?.roomCode || req.query?.roomCode;
-    const roomId = req.body?.roomId || req.query?.roomId;
     const caption = req.body?.caption || req.body?.title || req.file.originalname;
     const uploader = req.body?.uploader || 'creator';
     const targetRoom = req.body?.room || 'museum';
     const photoIndex = req.body?.photoIndex !== undefined && req.body?.photoIndex !== '' ? parseInt(req.body.photoIndex, 10) : null;
 
     let updatedRoom = null;
-    let target = null;
-    if (roomCode) {
-      target = await cloudDb.getRoomByCode(roomCode);
-    } else if (roomId) {
-      target = await cloudDb.getRoomById(roomId);
-    }
 
     if (target) {
       if (!target.museumConfiguration) target.museumConfiguration = { photos: [] };
@@ -475,7 +486,8 @@ app.delete('/api/rooms/:roomId/photos/:photoId', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Room not found.' });
     }
 
-    if (!token || room.creatorToken !== token) {
+    const isAuthorized = token && (room.creatorToken === token || room.creatorKey === token);
+    if (!isAuthorized) {
       return res.status(403).json({
         success: false,
         error: 'Unauthorized. Only the creator/uploader can delete photos.',
@@ -496,6 +508,70 @@ app.delete('/api/rooms/:roomId/photos/:photoId', async (req, res) => {
   } catch (err) {
     console.error('Error deleting photo:', err);
     res.status(500).json({ success: false, error: 'Failed to delete photo.' });
+  }
+});
+
+// 7. DELETE ROOM (Creator Only)
+app.delete('/api/rooms/:roomId', async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.replace(/^Bearer\s+/i, '');
+
+    const room = await cloudDb.getRoomById(roomId);
+    if (!room) {
+      return res.status(404).json({ success: false, error: 'Room not found.' });
+    }
+
+    const isAuthorized = token && (room.creatorToken === token || room.creatorKey === token);
+    if (!isAuthorized) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized. Only the creator can delete this room.',
+      });
+    }
+
+    await cloudDb.deleteRoom(roomId);
+    console.log(`[Room Deleted] ID: ${roomId}, Code: ${room.roomCode}`);
+    res.json({ success: true, message: 'Room deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting room:', err);
+    res.status(500).json({ success: false, error: 'Failed to delete room.' });
+  }
+});
+
+// 8. CLAIM UNOWNED ROOM (Generates creator key once if room has no owner yet)
+app.post('/api/rooms/:roomCode/claim', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const room = await cloudDb.getRoomByCode(roomCode);
+    if (!room) {
+      return res.status(404).json({ success: false, error: 'Room code not found.' });
+    }
+
+    if (room.creatorToken || room.creatorKey) {
+      return res.status(403).json({
+        success: false,
+        error: 'This room already has an owner and creator key.',
+      });
+    }
+
+    const newKey = crypto.randomBytes(32).toString('hex');
+    room.creatorToken = newKey;
+    room.creatorKey = newKey;
+    room.updatedAt = new Date().toISOString();
+    await cloudDb.saveRoom(room);
+
+    console.log(`[Room Claimed] Room ${room.roomCode} claimed with new creator key.`);
+    res.json({
+      success: true,
+      creatorToken: newKey,
+      creatorKey: newKey,
+      room,
+    });
+  } catch (err) {
+    console.error('Error claiming room:', err);
+    res.status(500).json({ success: false, error: 'Failed to claim room.' });
   }
 });
 

@@ -398,6 +398,71 @@ export class CloudDbService {
     const existing = await this.getRoomByCode(code);
     return Boolean(existing);
   }
+
+  async deleteRoom(roomId) {
+    if (!roomId) return false;
+    this.ensureProvider();
+
+    // 1. Local file
+    const localRooms = this._readLocalRooms();
+    const target = localRooms[roomId];
+    if (localRooms[roomId]) {
+      delete localRooms[roomId];
+      this._writeLocalRooms(localRooms);
+    }
+
+    // 2. MongoDB Atlas
+    if (this.provider === 'mongodb') {
+      try {
+        const col = await this.initMongo();
+        if (col) {
+          await col.deleteOne({ roomId });
+        }
+      } catch (err) {
+        console.error('[Database:MongoDB] deleteRoom error:', err.message);
+      }
+    }
+
+    // 3. Supabase
+    if (this.provider === 'supabase') {
+      try {
+        const url = process.env.SUPABASE_URL.replace(/\/+$/, '');
+        const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+        await fetch(`${url}/rest/v1/rooms?room_id=eq.${encodeURIComponent(roomId)}`, {
+          method: 'DELETE',
+          headers: {
+            apikey: key,
+            Authorization: `Bearer ${key}`,
+          },
+        });
+      } catch (err) {
+        console.error('[Database:Supabase] deleteRoom error:', err);
+      }
+    }
+
+    // 4. Upstash Redis
+    if (this.provider === 'upstash') {
+      try {
+        const url = process.env.UPSTASH_REDIS_REST_URL.replace(/\/+$/, '');
+        const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+        const keysToDelete = [`room_id:${roomId}`];
+        if (target?.roomCode) {
+          keysToDelete.push(`room:${target.roomCode.toUpperCase()}`);
+        }
+        await Promise.all(
+          keysToDelete.map((k) =>
+            fetch(`${url}/del/${encodeURIComponent(k)}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          )
+        );
+      } catch (err) {
+        console.error('[Database:Upstash] deleteRoom error:', err);
+      }
+    }
+
+    return true;
+  }
 }
 
 export const cloudDb = new CloudDbService();

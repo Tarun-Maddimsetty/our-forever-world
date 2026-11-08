@@ -16,6 +16,7 @@ import {
   Loader2,
   Share2,
   Trash2,
+  Key,
 } from 'lucide-react';
 import { gameStore, useGameStore } from '../../hooks/useGameStore';
 import { roomApi } from '../../services/roomApi';
@@ -39,6 +40,7 @@ export default function CreatorPanel() {
   const [publishModalOpen, setPublishModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [copiedCreatorKey, setCopiedCreatorKey] = useState(false);
 
   if (mode !== 'creator' || !creatorEditPanel) return null;
 
@@ -272,7 +274,7 @@ export default function CreatorPanel() {
         <div className="relative w-full max-w-4xl max-h-[92vh] flex flex-col glass-panel-gold rounded-3xl overflow-hidden shadow-2xl border-2 border-amber-400/40">
           {/* Top Modal Header */}
           <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-amber-300/20 via-rose-500/20 to-amber-300/20 border-b border-amber-400/30">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Sliders className="w-5 h-5 text-amber-300" />
               <h3 className="font-cinzel text-lg sm:text-xl font-bold text-amber-100">
                 ROOM CREATOR STUDIO
@@ -280,6 +282,21 @@ export default function CreatorPanel() {
               <span className="ml-2 px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-xs font-mono font-bold">
                 {roomCode}
               </span>
+              {creatorToken && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(creatorToken);
+                    setCopiedCreatorKey(true);
+                    setTimeout(() => setCopiedCreatorKey(false), 2000);
+                  }}
+                  className="px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-amber-200 text-xs font-mono flex items-center gap-1 transition"
+                  title="Copy secret creator key"
+                >
+                  <Key className="w-3 h-3 text-amber-300" />
+                  <span>{copiedCreatorKey ? 'Key Copied! ✅' : 'Copy Key'}</span>
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

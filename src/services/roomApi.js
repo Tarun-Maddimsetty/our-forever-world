@@ -2,6 +2,53 @@ import { DEFAULT_ROOM_DATA } from '../data/defaultRoomData';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
+const MY_ROOMS_KEY = 'forever_world_my_rooms';
+
+export function getMyRooms() {
+  try {
+    const raw = localStorage.getItem(MY_ROOMS_KEY);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list)) return list;
+    }
+  } catch (e) {}
+  return [];
+}
+
+export function saveMyRoom(roomEntry) {
+  if (!roomEntry || !roomEntry.roomCode) return;
+  try {
+    const list = getMyRooms();
+    const code = roomEntry.roomCode.trim().toUpperCase();
+    const existingIdx = list.findIndex((r) => r.roomCode.trim().toUpperCase() === code);
+    const entry = {
+      roomId: roomEntry.roomId,
+      roomCode: code,
+      creatorKey: roomEntry.creatorKey || roomEntry.creatorToken,
+      creatorToken: roomEntry.creatorKey || roomEntry.creatorToken,
+      title: roomEntry.title || roomEntry.room?.title || 'Our Forever World',
+      createdAt: roomEntry.createdAt || new Date().toISOString(),
+      lastOpenedAt: new Date().toISOString(),
+    };
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...entry };
+    } else {
+      list.unshift(entry);
+    }
+    localStorage.setItem(MY_ROOMS_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+
+export function removeMyRoom(roomCode) {
+  if (!roomCode) return;
+  try {
+    const list = getMyRooms().filter(
+      (r) => r.roomCode.trim().toUpperCase() !== roomCode.trim().toUpperCase()
+    );
+    localStorage.setItem(MY_ROOMS_KEY, JSON.stringify(list));
+  } catch (e) {}
+}
+
 function getLocalRooms() {
   try {
     return JSON.parse(localStorage.getItem('forever_world_local_rooms') || '{}');
@@ -83,14 +130,27 @@ export const roomApi = {
       });
       if (res.ok) {
         const data = await res.json();
+        const key = data.creatorKey || data.creatorToken;
         saveLocalRoom({
           roomId: data.roomId,
           roomCode: data.roomCode,
-          creatorToken: data.creatorToken,
-          isPublished: false,
+          creatorToken: key,
+          creatorKey: key,
+          isPublished: true,
           room: data.room,
         });
-        return data;
+        saveMyRoom({
+          roomId: data.roomId,
+          roomCode: data.roomCode,
+          creatorKey: key,
+          creatorToken: key,
+          title: data.room?.title || 'Our Forever World',
+          createdAt: data.room?.createdAt || new Date().toISOString(),
+        });
+        return {
+          ...data,
+          creatorKey: key,
+        };
       }
     } catch (e) {
       console.warn('Backend /api/rooms offline, using offline-ready room creation:', e.message);
@@ -99,25 +159,40 @@ export const roomApi = {
     // Resilient local fallback: Guaranteed instant room creation
     const roomId = 'room_' + Date.now();
     const randomCode = 'LOVE-' + Math.floor(1000 + Math.random() * 9000);
-    const creatorToken = 'token_' + Math.random().toString(36).substring(2);
+    const creatorToken = 'token_' + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
     const newRoom = {
       ...DEFAULT_ROOM_DATA,
       roomId,
       roomCode: randomCode,
+      creatorToken,
+      creatorKey: creatorToken,
+      published: true,
     };
     const localData = {
       roomId,
       roomCode: randomCode,
       creatorToken,
-      isPublished: false,
+      creatorKey: creatorToken,
+      isPublished: true,
       room: newRoom,
     };
     saveLocalRoom(localData);
+    saveMyRoom({
+      roomId,
+      roomCode: randomCode,
+      creatorKey: creatorToken,
+      creatorToken: creatorToken,
+      title: 'Our Forever World',
+      createdAt: new Date().toISOString(),
+    });
     return localData;
   },
 
   // Fetch room configuration by room code (with optional creator token for preview)
   async getRoom(roomCode, creatorToken = null) {
+    if (!roomCode || typeof roomCode !== 'string') {
+      throw new Error('Please enter a valid room code.');
+    }
     const code = roomCode.trim().toUpperCase();
     try {
       const headers = {};
@@ -132,33 +207,72 @@ export const roomApi = {
         saveLocalRoom({
           roomId: data.room.roomId,
           roomCode: data.room.roomCode,
-          creatorToken,
+          creatorToken: creatorToken || (data.isCreator ? data.room.creatorToken : null),
           isPublished: true,
           room: data.room,
         });
         return data;
       }
+
+      // Backend returned error response (e.g. 404)
+      const errData = await res.json().catch(() => ({}));
+      const message =
+        errData.error ||
+        (res.status === 404
+          ? `Room code "${code}" not found. Please verify the code and try again.`
+          : `Failed to load room (${res.status}).`);
+      throw new Error(message);
     } catch (e) {
-      console.warn('Backend /api/rooms lookup offline, checking local cache:', e.message);
+      // Check local cache if truly offline
+      const localRooms = getLocalRooms();
+      if (localRooms[code] && localRooms[code].room) {
+        console.warn('Network unavailable, served locally cached room:', code);
+        return { room: localRooms[code].room, isCreator: Boolean(creatorToken) };
+      }
+      throw e;
     }
+  },
 
-    // Check local fallback storage
-    const localRooms = getLocalRooms();
-    if (localRooms[code]) {
-      return { room: localRooms[code].room };
+  // Claim unowned room and generate creator key once
+  async claimRoom(roomCode) {
+    const code = roomCode.trim().toUpperCase();
+    const res = await fetch(`${API_BASE}/api/rooms/${encodeURIComponent(code)}/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to claim room.');
     }
+    const data = await res.json();
+    const key = data.creatorKey || data.creatorToken;
+    saveMyRoom({
+      roomId: data.room.roomId,
+      roomCode: data.room.roomCode,
+      creatorKey: key,
+      creatorToken: key,
+      title: data.room?.title || 'Our Forever World',
+      createdAt: data.room?.createdAt || new Date().toISOString(),
+    });
+    return data;
+  },
 
-    // If code starts with LOVE- or is valid, provide default romantic room
-    if (code.length >= 4) {
-      const fallbackRoom = {
-        ...DEFAULT_ROOM_DATA,
-        roomId: 'room_' + code,
-        roomCode: code,
-      };
-      return { room: fallbackRoom };
+  // Delete room (Creator only)
+  async deleteRoom(roomId, creatorToken, roomCode = null) {
+    const res = await fetch(`${API_BASE}/api/rooms/${roomId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${creatorToken}`,
+      },
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Failed to delete room.');
     }
-
-    throw new Error('Room not found. Please verify the code.');
+    if (roomCode) {
+      removeMyRoom(roomCode);
+    }
+    return res.json();
   },
 
   // Update room data (Creator only)
