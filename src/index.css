@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-gold: #e6b980;
+  --gold-glow: rgba(230, 185, 128, 0.4);
+  --romantic-pink: #ff758c;
+  --deep-wine: #380d19;
+  --parchment-bg: #fdfbf7;
+  --parchment-border: #d4c5b9;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  background-color: #0b0813;
+  color: #ffffff;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography styles */
+.font-cinzel {
+  font-family: 'Cinzel Decorative', cursive, serif;
+}
+
+.font-marcellus {
+  font-family: 'Marcellus', serif;
+}
+
+.font-handwriting {
+  font-family: 'Dancing Script', cursive;
+}
+
+.font-calligraphy {
+  font-family: 'Great Vibes', cursive;
+}
+
+.font-serif-romantic {
+  font-family: 'Playfair Display', serif;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+  background: rgba(18, 14, 28, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(230, 185, 128, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), 0 0 15px rgba(230, 185, 128, 0.15);
+}
+
+.glass-panel-gold {
+  background: linear-gradient(135deg, rgba(35, 25, 45, 0.85) 0%, rgba(20, 15, 30, 0.9) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+/* Golden Buttons */
+.btn-gold {
+  background: linear-gradient(135deg, #e6b980 0%, #eac775 50%, #c49652 100%);
+  color: #1a0f05;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px rgba(230, 185, 128, 0.4), 0 0 10px rgba(255, 255, 255, 0.3) inset;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-gold:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 25px rgba(230, 185, 128, 0.6), 0 0 15px rgba(255, 255, 255, 0.5) inset;
+}
+
+.btn-gold:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Romantic Pink Button */
+.btn-romantic {
+  background: linear-gradient(135deg, #ff758c 0%, #ff7eb3 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: 0 4px 20px rgba(255, 117, 140, 0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-romantic:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 25px rgba(255, 117, 140, 0.6);
+}
+
+/* Parchment Letter Style */
+.parchment {
+  background: #fdfaf3;
+  background-image: 
+    radial-gradient(#e8decb 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(212, 175, 55, 0.05) 0%, transparent 100%);
+  background-size: 20px 20px, 100% 100%;
+  color: #2c1810;
+  border: 1px solid #d4c5b9;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 0 0 6px rgba(253, 250, 243, 0.8),
+    0 0 0 8px rgba(212, 175, 55, 0.4);
+  position: relative;
+}
+
+/* Wax Seal */
+.wax-seal {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #e63946, #9b111e 70%, #660708);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffd700;
+  font-size: 22px;
+  border: 2px solid #b7094c;
+}
+
+/* Audio Visualizer Bars Animation */
+@keyframes barBounce {
+  0%, 100% { height: 15%; }
+  50% { height: 95%; }
+}
+
+.visualizer-bar {
+  width: 4px;
+  background: linear-gradient(to top, #ff758c, #ffd700);
+  border-radius: 2px;
+  animation: barBounce 1.2s infinite ease-in-out;
+}
+
+/* Floating animation */
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(1.5deg); }
+}
+
+.animate-float {
+  animation: floatGentle 4s ease-in-out infinite;
+}
+
+/* Custom Scrollbar for letters */
+.parchment-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.parchment-scroll::-webkit-scrollbar-track {
+  background: rgba(212, 197, 185, 0.3);
+  border-radius: 4px;
+}
+
+.parchment-scroll::-webkit-scrollbar-thumb {
+  background: #c2ab99;
+  border-radius: 4px;
+}
+
+.parchment-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a88d79;
+}
+
+/* Touch controls prevention */
+.touch-control-zone {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

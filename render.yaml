@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: our-forever-world
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: node server/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      # Cloud Persistent Database Variables (Optional: Supabase or Upstash)
+      # - key: SUPABASE_URL
+      #   sync: false
+      # - key: SUPABASE_KEY
+      #   sync: false
+      # Cloud Media Storage Variables (Optional: Cloudinary)
+      # - key: CLOUDINARY_CLOUD_NAME
+      #   sync: false
+      # - key: CLOUDINARY_API_KEY
+      #   sync: false
+      # - key: CLOUDINARY_API_SECRET
+      #   sync: false

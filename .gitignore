@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production build outputs
+dist/
+dist-ssr/
+*.local
+
+# Environment variables & secrets (NEVER commit secrets!)
+.env
+.env*.local
+.env.production
+.env.development
+
+# Logs & temp files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+*.tmp
+server/data/*.tmp
+
+# Uploads directory locally (uploaded files shouldn't be tracked in git)
+uploads/*
+!uploads/.gitkeep
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
