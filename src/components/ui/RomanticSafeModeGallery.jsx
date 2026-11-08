@@ -17,6 +17,12 @@ import {
 import { gameStore, useGameStore } from '../../hooks/useGameStore';
 import { romanticAudio } from '../../hooks/useAudioManager';
 
+function resolveImgUrl(src) {
+  if (!src) return '';
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  return src.startsWith('/uploads/') && apiBase ? `${apiBase}${src}` : src;
+}
+
 export default function RomanticSafeModeGallery({ onSwitchTo3D }) {
   const currentRoom = useGameStore((s) => s.currentRoom);
   const roomData = useGameStore((s) => s.roomData);
@@ -134,7 +140,7 @@ export default function RomanticSafeModeGallery({ onSwitchTo3D }) {
                 >
                   <div className="relative aspect-[4/3] bg-black/50 overflow-hidden group">
                     <img
-                      src={photo.image}
+                      src={resolveImgUrl(photo.image)}
                       alt={photo.title}
                       className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                       onError={(e) => {

@@ -136,12 +136,14 @@ export class CloudDbService {
 
   getDbStatus() {
     const p = this.ensureProvider();
+    const isMongoConnected = Boolean(this.mongoCollection);
     return {
       provider: p,
       isCloud: p !== 'local_file',
+      connected: p === 'mongodb' ? isMongoConnected : p !== 'local_file',
       details:
         p === 'mongodb'
-          ? `MongoDB Atlas (Database: "${this.mongoDb?.databaseName || cleanEnv(process.env.MONGODB_DB_NAME) || 'our_forever_world'}", Connected: ${Boolean(this.mongoCollection)})`
+          ? `MongoDB Atlas (Database: "${this.mongoDb?.databaseName || cleanEnv(process.env.MONGODB_DB_NAME) || 'our_forever_world'}", Connected: ${isMongoConnected})`
           : p === 'mongodb_data_api'
           ? 'MongoDB Atlas Data API'
           : p === 'supabase'
@@ -317,6 +319,11 @@ export class CloudDbService {
     if (!room || !room.roomId) throw new Error('Cannot save room without roomId.');
     this.ensureProvider();
 
+    // Normalize room code consistently
+    if (room.roomCode) {
+      room.roomCode = String(room.roomCode).trim().toUpperCase();
+    }
+
     // Always mirror to local file for backup and instant local access
     const localRooms = this._readLocalRooms();
     localRooms[room.roomId] = room;
@@ -327,9 +334,11 @@ export class CloudDbService {
       try {
         const col = await this.initMongo();
         if (col) {
+          const roomToSave = { ...room };
+          delete roomToSave._id; // Prevent MongoDB immutable field _id update error
           await col.updateOne(
             { roomId: room.roomId },
-            { $set: { ...room, updatedAt: new Date().toISOString() } },
+            { $set: { ...roomToSave, updatedAt: new Date().toISOString() } },
             { upsert: true }
           );
           console.log(`[Database:MongoDB] Persisted room ${room.roomCode} in Atlas`);

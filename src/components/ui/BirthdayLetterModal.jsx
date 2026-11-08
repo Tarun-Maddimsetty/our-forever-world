@@ -10,6 +10,8 @@ export default function BirthdayLetterModal() {
   const roomData = useGameStore((s) => s.roomData);
   const roomId = useGameStore((s) => s.roomId);
   const creatorToken = useGameStore((s) => s.creatorToken);
+  const mode = useGameStore((s) => s.mode);
+  const isPreviewMode = useGameStore((s) => s.isPreviewMode);
 
   const [isOpeningEnvelope, setIsOpeningEnvelope] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -19,6 +21,8 @@ export default function BirthdayLetterModal() {
   const [editSignature, setEditSignature] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const canEdit = mode === 'creator' && !isPreviewMode && Boolean(creatorToken);
 
   // Retrieve creator's custom birthday letter from persistent room configuration
   const savedLetter = roomData?.bedroomConfiguration?.birthdayLetter;
@@ -128,7 +132,7 @@ export default function BirthdayLetterModal() {
               </h3>
             </div>
             <div className="flex items-center gap-2">
-              {!isEditing && (
+              {!isEditing && canEdit && (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="px-3 py-1.5 rounded-full bg-amber-400/30 hover:bg-amber-400/50 border border-amber-900/20 text-amber-950 text-xs font-bold flex items-center gap-1.5 transition shadow"

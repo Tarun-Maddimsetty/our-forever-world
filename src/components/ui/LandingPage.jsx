@@ -118,7 +118,7 @@ export default function LandingPage() {
     }
   };
 
-  // 2. Handle VISITOR / CREATOR RE-JOIN Workflow
+  // 2. Handle VISITOR JOIN Workflow (Joining with only code ALWAYS opens VIEWER mode)
   const handleJoinRoom = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     const cleanCode = roomCodeInput.trim().toUpperCase();
@@ -133,29 +133,23 @@ export default function LandingPage() {
       romanticAudio.init();
       romanticAudio.playSparkle();
 
-      // Check if creator key is already saved in this browser for this room
-      const saved = myRoomsList.find(
-        (r) => r.roomCode && r.roomCode.trim().toUpperCase() === cleanCode
-      );
-      const tokenToSend = saved?.creatorKey || null;
-
-      const data = await roomApi.getRoom(cleanCode, tokenToSend);
+      // STRICT: Joining with only the room code opens VIEWER mode with no creator permissions
+      const data = await roomApi.getRoom(cleanCode);
 
       if (!data || !data.room) {
         throw new Error(`Room code "${cleanCode}" not found. Please verify the code and try again.`);
       }
 
-      const isCreatorAccess = Boolean(tokenToSend && data.isCreator);
-
       gameStore.set({
-        mode: isCreatorAccess ? 'creator' : 'visitor',
+        mode: 'visitor',
         roomId: data.room.roomId,
         roomCode: data.room.roomCode,
-        creatorToken: isCreatorAccess ? tokenToSend : null,
+        creatorToken: null,
         isPublished: true,
         roomData: data.room,
         currentRoom: 'museum',
-        creatorEditPanel: isCreatorAccess ? 'museum' : null,
+        creatorEditPanel: null,
+        isPreviewMode: false,
         memoriesRead: [],
       });
     } catch (err) {

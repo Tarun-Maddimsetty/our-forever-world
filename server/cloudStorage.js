@@ -91,12 +91,15 @@ export class CloudStorageService {
     const p = this.ensureProvider();
     const cloudName = cleanEnv(process.env.CLOUDINARY_CLOUD_NAME);
     const bucket = cleanEnv(process.env.SUPABASE_BUCKET) || 'memories';
+    const isCloudinaryConfigured = Boolean(cloudName && (cleanEnv(process.env.CLOUDINARY_API_KEY) || cleanEnv(process.env.CLOUDINARY_UPLOAD_PRESET)));
+
     return {
       provider: p,
       isCloud: p !== 'local',
+      connected: p === 'cloudinary' ? isCloudinaryConfigured : p === 'supabase',
       details:
         p === 'cloudinary'
-          ? `Cloudinary (Cloud: "${cloudName || 'configured'}")`
+          ? `Cloudinary (Cloud: "${cloudName || 'configured'}", Configured: ${isCloudinaryConfigured})`
           : p === 'supabase'
           ? `Supabase Storage (Bucket: "${bucket}")`
           : 'Local Server Disk (/uploads)',
@@ -120,11 +123,14 @@ export class CloudStorageService {
         const apiSecret = cleanEnv(process.env.CLOUDINARY_API_SECRET);
         const uploadPreset = cleanEnv(process.env.CLOUDINARY_UPLOAD_PRESET);
 
-        const fileBuffer = fs.readFileSync(file.path);
-        const base64Data = `data:${file.mimetype};base64,${fileBuffer.toString('base64')}`;
+        if (!cloudName) {
+          throw new Error('Cloudinary cloud name is missing. Please set CLOUDINARY_CLOUD_NAME or CLOUDINARY_URL.');
+        }
 
-        const formData = new URLSearchParams();
-        formData.append('file', base64Data);
+        const fileBuffer = fs.readFileSync(file.path);
+        const formData = new FormData();
+        const fileBlob = new Blob([fileBuffer], { type: file.mimetype || 'image/jpeg' });
+        formData.append('file', fileBlob, file.originalname || 'photo.jpg');
 
         // Sign request if API key and Secret are present
         if (apiKey && apiSecret) {
@@ -137,6 +143,8 @@ export class CloudStorageService {
           formData.append('signature', signature);
         } else if (uploadPreset) {
           formData.append('upload_preset', uploadPreset);
+        } else {
+          throw new Error('Cloudinary requires either API Key + Secret or an Upload Preset.');
         }
 
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
@@ -146,26 +154,44 @@ export class CloudStorageService {
 
         if (!res.ok) {
           const errText = await res.text();
-          throw new Error(`Cloudinary upload failed: ${res.status} ${errText}`);
+          let parsedErrMsg = '';
+          try {
+            const parsed = JSON.parse(errText);
+            parsedErrMsg = parsed?.error?.message || errText;
+          } catch (e) {
+            parsedErrMsg = errText;
+          }
+          throw new Error(`Cloudinary error: ${parsedErrMsg}`);
         }
 
         const data = await res.json();
+        if (!data.secure_url) {
+          throw new Error('Cloudinary response did not include a secure_url.');
+        }
+
         console.log(`[Storage:Cloudinary] Successfully uploaded ${file.originalname} -> ${data.secure_url}`);
 
         // Clean up temporary local upload file
         if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
+          try { fs.unlinkSync(file.path); } catch (e) {}
         }
 
         return {
           url: data.secure_url,
           provider: 'cloudinary',
           originalName: file.originalname,
-          size: file.size,
+          size: data.bytes || file.size,
           mimetype: file.mimetype,
         };
       } catch (err) {
-        console.error('[Storage:Cloudinary] Error uploading, falling back to local storage:', err);
+        console.error('[Storage:Cloudinary] Cloud upload failed:', err.message);
+        if (fs.existsSync(file.path)) {
+          try { fs.unlinkSync(file.path); } catch (e) {}
+        }
+        // Strict Rule: Never fall back to local ephemeral disk if Cloudinary is configured
+        if (this.detectProvider() === 'cloudinary') {
+          throw new Error(`Photo upload failed: ${err.message}. Please try again.`);
+        }
       }
     }
 

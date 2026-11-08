@@ -103,11 +103,23 @@ export default function MemoryStation({ memory, index }) {
 
     let isMounted = true;
     if (memory.image) {
+      const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+      const rawSrc = memory.image;
+      const resolvedSrc = rawSrc.startsWith('/uploads/') && apiBase ? `${apiBase}${rawSrc}` : rawSrc;
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.src = memory.image;
+      img.src = resolvedSrc;
       img.onload = () => {
         if (isMounted) drawCard(img);
+      };
+      img.onerror = () => {
+        // Fallback without crossOrigin in case CDN blocks CORS anonymous
+        const fallbackImg = new Image();
+        fallbackImg.src = resolvedSrc;
+        fallbackImg.onload = () => {
+          if (isMounted) drawCard(fallbackImg);
+        };
       };
     }
 

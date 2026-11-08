@@ -32,7 +32,11 @@ export default function PhotoModal() {
         {/* High Res Image */}
         <div className="w-full flex-1 overflow-hidden rounded-2xl max-h-[75vh]">
           <img
-            src={selectedPhoto.image}
+            src={
+              selectedPhoto.image?.startsWith('/uploads/') && import.meta.env.VITE_API_URL
+                ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}${selectedPhoto.image}`
+                : selectedPhoto.image
+            }
             alt={selectedPhoto.title}
             className="w-full h-full object-contain mx-auto"
           />

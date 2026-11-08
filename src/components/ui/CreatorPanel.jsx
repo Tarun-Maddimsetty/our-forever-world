@@ -23,6 +23,12 @@ import { roomApi } from '../../services/roomApi';
 import { romanticAudio } from '../../hooks/useAudioManager';
 import confetti from 'canvas-confetti';
 
+function resolveImgUrl(src) {
+  if (!src) return '';
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  return src.startsWith('/uploads/') && apiBase ? `${apiBase}${src}` : src;
+}
+
 export default function CreatorPanel() {
   const mode = useGameStore((s) => s.mode);
   const roomId = useGameStore((s) => s.roomId);
@@ -30,6 +36,7 @@ export default function CreatorPanel() {
   const creatorToken = useGameStore((s) => s.creatorToken);
   const roomData = useGameStore((s) => s.roomData);
   const creatorEditPanel = useGameStore((s) => s.creatorEditPanel);
+  const isPreviewMode = useGameStore((s) => s.isPreviewMode);
 
   const [activeTab, setActiveTab] = useState(0); // 0: Museum, 1: Singing, 2: Dancing, 3: Bedroom
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
@@ -42,7 +49,7 @@ export default function CreatorPanel() {
   const [shareCopied, setShareCopied] = useState(false);
   const [copiedCreatorKey, setCopiedCreatorKey] = useState(false);
 
-  if (mode !== 'creator' || !creatorEditPanel) return null;
+  if (mode !== 'creator' || !creatorEditPanel || isPreviewMode) return null;
 
   const photos = roomData?.museumConfiguration?.photos || [];
   const activePhoto = photos[selectedPhotoIndex] || {};
@@ -376,7 +383,7 @@ export default function CreatorPanel() {
                           : 'border-white/20 opacity-70 hover:opacity-100'
                       }`}
                     >
-                      <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                      <img src={resolveImgUrl(p.image)} alt={p.title} className="w-full h-full object-cover" />
                       <div className="absolute bottom-0 inset-x-0 bg-black/70 text-[10px] text-center text-white py-0.5">
                         #{idx + 1}
                       </div>
@@ -391,7 +398,7 @@ export default function CreatorPanel() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <img
-                      src={activePhoto.image}
+                      src={resolveImgUrl(activePhoto.image)}
                       alt={activePhoto.title}
                       className="w-28 h-36 object-cover rounded-xl border border-amber-300/40 shadow-md"
                     />

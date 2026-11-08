@@ -421,15 +421,21 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       if (!target.museumConfiguration) target.museumConfiguration = { photos: [] };
       if (!Array.isArray(target.museumConfiguration.photos)) target.museumConfiguration.photos = [];
 
+      const stationNumber = photoIndex !== null && photoIndex >= 0 ? (photoIndex + 1) : (target.museumConfiguration.photos.length + 1);
       const photoRecord = {
-        id: photoIndex !== null && photoIndex >= 0 ? (photoIndex + 1) : (target.museumConfiguration.photos.length + 1),
+        id: stationNumber,
+        station: stationNumber,
+        photoIndex: photoIndex !== null ? photoIndex : (stationNumber - 1),
         title: caption,
         caption: caption,
         image: uploadResult.url,
         url: uploadResult.url,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: req.body?.date || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         location: req.body?.location || 'Our Peaceful Sanctuary',
         letter: req.body?.letter || (photoIndex !== null && target.museumConfiguration.photos[photoIndex]?.letter) || '',
+        wall: req.body?.wall || (photoIndex !== null && target.museumConfiguration.photos[photoIndex]?.wall) || (stationNumber % 2 === 0 ? 'east' : 'west'),
+        positionOffset: (photoIndex !== null && target.museumConfiguration.photos[photoIndex]?.positionOffset) || 0,
+        scale: (photoIndex !== null && target.museumConfiguration.photos[photoIndex]?.scale) || 1.0,
         uploader: uploader,
         room: targetRoom,
         uploadedAt: new Date().toISOString(),
